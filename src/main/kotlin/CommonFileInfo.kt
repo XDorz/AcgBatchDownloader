@@ -1,0 +1,1 @@
+open class CommonFileInfo(val c_name: String, val c_href: String, val c_extension: String)
