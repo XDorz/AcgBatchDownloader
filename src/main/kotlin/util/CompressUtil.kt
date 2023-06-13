@@ -96,7 +96,6 @@ class CompressUtil {
         for (item in archive.simpleInterface.archiveItems) {
             if (item.isFolder) {
                 //SevenZipJBinding 这个库好像会递归的获得所有文件与文件夹(一般是文件在先，文件夹后于它包含的文件)
-                //TODO(留待观察)
                 continue
             }
 

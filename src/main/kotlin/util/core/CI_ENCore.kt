@@ -104,7 +104,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
                     var updateTime: Date? = null
                     val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm")       //SimpleDateFormat并不是线程安全的，被坑惨力~
                     //这里还是不太可能出bug的，主动抛出异常能更好debug？
-                    //TODO("如果出现bug再修改这里的所有非空逻辑")
+                    //TODO("如果这里出现问题了大概率是 ci-en 的网站更新了网页")
                     item.getElementsByClass("e-date").forEachIndexed { index, date ->
                         when (index) {
                             0 -> publishTime = dateFormat.parse(dateRegex.find(date.text())!!.value)

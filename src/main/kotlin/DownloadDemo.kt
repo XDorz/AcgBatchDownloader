@@ -71,6 +71,7 @@ class DownloadDemo {
     }
 }
 
+//解压文件
 fun main() = runBlocking {
     val timeMillis = measureTimeMillis {
         val failed = CompressUtil().compressAll("G:\\your\\post\\saved\\path") { _, fileName, file ->
