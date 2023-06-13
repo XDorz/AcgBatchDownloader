@@ -42,6 +42,6 @@ bin/
 .DS_Store
 
 #custom
-src/kotlin/DownloadMain.kt
-src/kotlin/CompressMain.kt
-test/**/*.kt
+/src/main/kotlin/DownloadMain.kt
+/src/main/kotlin/CompressMain.kt
+/src/test/
