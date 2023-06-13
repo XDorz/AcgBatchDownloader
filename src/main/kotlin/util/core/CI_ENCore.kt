@@ -39,7 +39,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
     override val requestGenerator: RequestUtil
         get() = requestGeneric
 
-    //TODO("当请求过快返回403Forbidden的时候delay一段时间 这段时间约莫5分钟？也很有可能是每个整点，像10,20，也有可能每5分钟重置一次？  文章过长可能出现的“続きを読む”?   ")
+    //TODO("当请求过快返回403 Forbidden的时候delay一段时间 这段时间约莫5分钟？也很有可能是每个整点，像10,20，也有可能每5分钟重置一次？ 测试时46m16s前出现的403,50m多一点恢复正常 解决问题的关键点可能在RequestUtil 目前想法是为其配置请求模式，或是为其传入异常处理函数 ")
     //获取最大cien作品的最大页数
     tailrec fun articlePageNum(creatorId: String, pageNum: Int = 1000): Int {
         val html = requestGeneric.getBody(MessageFormat.format(creatorApi, creatorId, pageNum.toString())).html()
@@ -131,6 +131,18 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
                         priceList.add(price)
                     }
 
+                    //针对类似 https://ci-en.dlsite.com/creator/14226/article?mode=detail&page=1 出现的  "続きを読む" 目前尚不知道是文章过长会出现这个还是只有置顶投稿会有这个标签
+                    //此处没有剔除title这个元素，意味着会在links中多出一个该作品的链接，但无伤大雅，去除这个title反而会使代码看起来更加冗余
+                    val articleEle = item.getElementsByClass("e-articleCommentLink").getOrNull(0)
+                        ?.getElementsByTag("a")?.getOrNull(0)?.let {
+                            if (it.text() == "続きを読む") {
+                                requestGeneric.getBody(it.attr("href")).html()
+                                    .getElementsByClass("e-boxInner is-article").getOrNull(0) ?: item
+                            } else {
+                                item
+                            }
+                        } ?: item
+
                     val info = CIENPostInfo(
                         postId!!,
                         title!!,
@@ -141,7 +153,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
                         publishTime != updateTime,
                         restricted,
                         access,
-                        item.getElementsByTag("article").first()!!,
+                        articleEle.getElementsByTag("article").first()!!,
                         planMap
                     )
                     postsArray[articleIndex] = info
@@ -154,7 +166,6 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
     //传入的 CIENCreatorInfo中的articleHtml属性需要为<article>标签这个元素
     //如果使用整个投稿检索的话会将头像误作图片，将文章下的tag误作links
     override suspend fun catchPostDownloadInfo(postInfo: CIENPostInfo): CIENDownloadInfo {
-        //TODO("可能存在 続きを読む 这样的未完全显示文章的问题，详见  https://ci-en.dlsite.com/creator/14226/article?mode=detail&page=1  第一个作品")
         val rewardItem = ArrayList<Element>()
         val planedList = ArrayList<CIENPlanedInfo>()
 
@@ -210,7 +221,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
             if (imgPath.isBlank()) {
                 //头像的显示也会用 vue-l-image 这个标签表示，而且还有<img>标签表示的图片，推测可能为投稿封面？？
                 //return@forEachIndexed
-                TODO("DO STH")
+                TODO("DO STH  目前已知作者头像也会用到 vue-l-image这个标签，但是没有data-raw这个属性")
             } else {
                 val extension = imgPath.urlGetExtension() ?: "png"
                 imgInfos.add(CommonFileInfo("$index.$extension", imgPath, extension))

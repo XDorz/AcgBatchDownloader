@@ -150,6 +150,8 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
                                 }
                                 //如果一次性爬取太多可能会触发风控，此时会抛出异常导致程序崩溃  此时需要try catch来维持程序不崩溃
                                 //TODO("添加进一步错误处理，如delay一段时间后重试  注意并发问题")
+                                //2023/6/13 不同平台不同风控很难处理，在PlatformCore 中为每个平台设置一个专门的风控处理函数的代价有点高，还要考虑并发带来的问题
+                                //而且风控策略可能会随时间更新，也不一定保证能有效果，风控可能和梯子ip有关，可能和账号有关，可能和作者有关，这个功能不太可能去实现
                                 try {
                                     outputStream().use { fout ->
                                         requestGeneric.genericGet(href).execute().bodyStream().use {
