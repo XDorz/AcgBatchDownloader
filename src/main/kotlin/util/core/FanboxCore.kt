@@ -1,8 +1,8 @@
 package util.core
 
-import CommonPostInfo
 import CommonDownloadInfo
 import CommonFileInfo
+import CommonPostInfo
 import IdmDownloadInfo
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.TypeReference
@@ -16,9 +16,8 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedDeque
-import kotlin.collections.ArrayList
-import kotlin.collections.LinkedHashMap
 
+//在fanbox中，start与end的解释为 [作品] 序号
 class FanboxCore(private val requestGeneric: RequestUtil) :
     BasicPlatformCore<FanboxPostInfo, FanboxDownloadInfo, FanboxFileInfo>() {
     /**
@@ -43,8 +42,17 @@ class FanboxCore(private val requestGeneric: RequestUtil) :
     override val requestGenerator: RequestUtil
         get() = requestGeneric
 
-    override suspend fun fetchPosts(authorName: String): List<FanboxPostInfo> =
-        fetchPostsRec(MessageFormat.format(creatorApi, authorName))
+    //fanbox一次请求最多能返回300条作品信息，返回量大而且json解析在内存中，效率非常高，故此处选择直接获取全部作品信息做一个剪裁
+    override suspend fun fetchPosts(
+        authorName: String,
+        start: Int?,
+        end: Int?,
+        reversed: Boolean
+    ): List<FanboxPostInfo> {
+        val list = fetchPostsRec(MessageFormat.format(creatorApi, authorName))
+        val range = postRange(start, end, reversed, list.size - 1)
+        return list.subList(range.first, range.last + 1)
+    }
 
     private tailrec fun fetchPostsRec(
         url: String,

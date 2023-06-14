@@ -5,8 +5,8 @@ plugins {
     application
 }
 
-group = "org.example"
-version = "1.0-SNAPSHOT"
+group = "github.XDorz"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -67,7 +67,7 @@ dependencies {
 //}
 
 tasks.jar{
-    archiveFileName.set("FanboxDownloader.jar")
+    archiveFileName.set("FanboxDownloader_$version.jar")
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 

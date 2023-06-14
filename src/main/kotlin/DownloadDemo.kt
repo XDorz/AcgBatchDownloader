@@ -47,23 +47,32 @@ class DownloadDemo {
                 //此处的14266为用户id  例如你浏览一个用户，你可以看到浏览器URL为
                 //https://ci-en.dlsite.com/creator/14266
                 //此时creator后面的那个数字(即14266)就是用户id
-                val fail = commonDownload("14266", "G://your//save//path", filterFile = { _, cienDownloadInfo ->
-                    //您可以在此处修改任意信息
-                    //去除所有文件的下载
-                    cienDownloadInfo.fileHref.clear()
-                    //在此处可以修改分类保存的每个文件名，不推荐将所有文件名修改为一个，会导致不同投稿的文件覆盖
-                    cienDownloadInfo.title = cienDownloadInfo.title
-                    //过滤掉没有图片的作品信息
-                    cienDownloadInfo.imgHref.isNotEmpty()
-                }) filter@{ index, cienPostInfo ->
-                    //下载前51个
-                    if (index > 50) {
-                        return@filter false
+                //这里指定start，end表示下载第0-10页，但是reversed表示逆转列表，所以是下载第max-10 到 max页，也就是最早的10页作品
+                val fail =
+                    commonDownload(
+                        "14266",
+                        "G://your//save//path",
+                        true,
+                        0,
+                        10,
+                        false,
+                        filterFile = { _, cienDownloadInfo ->
+                            //您可以在此处修改任意信息
+                            //去除所有文件的下载
+                            cienDownloadInfo.fileHref.clear()
+                            //在此处可以修改分类保存的每个文件名，不推荐将所有文件名修改为一个，会导致不同投稿的文件覆盖
+                            cienDownloadInfo.title = cienDownloadInfo.title
+                            //过滤掉没有图片的作品信息
+                            cienDownloadInfo.imgHref.isNotEmpty()
+                        }) filter@{ index, cienPostInfo ->
+                        //下载前51个
+                        if (index > 50) {
+                            return@filter false
+                        }
+                        //过滤掉所有以"【特別動画】"为开头的标题
+                        if (cienPostInfo.title.startsWith("【特別動画】")) return@filter false
+                        true
                     }
-                    //过滤掉所有以"【特別動画】"为开头的标题
-                    if (cienPostInfo.title.startsWith("【特別動画】")) return@filter false
-                    true
-                }
                 println("共有以下文件下载失败 \n" + fail.joinToString("\n"))
             }
         }

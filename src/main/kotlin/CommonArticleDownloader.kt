@@ -43,10 +43,12 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
      * 举例来说,你不想下载图片,可以使用 info.imgHref = arrayListOf(),
      * 此时如果你想确保不会有额外的空文件被创建,请于这段代码后检查cover和fileHref是否为空并返回Boolean进行下载任务过滤
      *
-     * @param authorKey            作者名称，需要从url中获取
+     * @param authorKey             作者名称，需要从url中获取
      * @param savePath              作品保存路径
-     * @param requestGeneric        请求生成器，用于生成配置了指定参数的请求，如cookie，referer
      * @param download              是否进行下载，默认为是，如果不希望进行下载仅希望获取作品下载链接或希望打印作品名称等请设置为false并通过给定的两个filter获取作品的信息
+     * @param start                 XX的获取起始范围 （不同的平台有不同的解释，请参见各个core的开头）
+     * @param end                   XX的获取结束范围 （不同的平台有不同的解释，请参见各个core的开头）
+     * @param reversed              是否翻转，默认为true，即正常浏览顺序，将最新的作品置于前面
      * @param printProgress         是否打印进度条
      */
     @OptIn(ObsoleteCoroutinesApi::class, DelicateCoroutinesApi::class)
@@ -54,9 +56,12 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
         authorKey: String,
         savePath: String,
         download: Boolean = true,
+        start: Int? = 0,
+        end: Int? = null,
+        reversed: Boolean = true,
         printProgress: Boolean = true,
-        filterFile: CommonArticleDownloader<T,K,E>.(index: Int, K) -> Boolean = { _, _ -> true },
-        filterCreator: CommonArticleDownloader<T,K,E>.(index: Int, T) -> Boolean = { _, _ -> true },
+        filterFile: CommonArticleDownloader<T, K, E>.(index: Int, K) -> Boolean = { _, _ -> true },
+        filterCreator: CommonArticleDownloader<T, K, E>.(index: Int, T) -> Boolean = { _, _ -> true },
     ): List<String> {
         //守护线程----状态打印区
         var photoDown = 0
@@ -95,7 +100,7 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
             val mutex = Mutex()
 
             //获取该用户所有作品
-            val posts = core.fetchPosts(authorKey).filterIndexed { i, c -> filterCreator(i, c) }
+            val posts = core.fetchPosts(authorKey, start, end, reversed).filterIndexed { i, c -> filterCreator(i, c) }
 
             //获取该用户所有作品的下载链接解析
             state = 1

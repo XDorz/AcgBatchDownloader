@@ -1,8 +1,8 @@
 package util.core
 
-import CommonPostInfo
 import CommonDownloadInfo
 import CommonFileInfo
+import CommonPostInfo
 import IdmDownloadInfo
 import com.alibaba.fastjson.JSONObject
 import kotlinx.coroutines.Dispatchers
@@ -18,11 +18,10 @@ import util.RequestUtil
 import java.io.File
 import java.text.MessageFormat
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedDeque
-import kotlin.collections.ArrayList
 
+//在CI-EN中，start与end的含义解释为 [页数] 排除第一页作者固定的作品，每页有5个作品
 class CI_ENCore(private val requestGeneric: RequestUtil) :
     BasicPlatformCore<CIENPostInfo, CIENDownloadInfo, CommonFileInfo>() {
 
@@ -52,10 +51,16 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
         } ?: 0
     }
 
+    //下面三个属性是用于控制通用下载时的跟随作者
     private var isFollow: Boolean? = null
     private var cId: String? = null
     private var commonDown = false
-    override suspend fun fetchPosts(creatorId: String): List<CIENPostInfo> {
+    override suspend fun fetchPosts(
+        creatorId: String,
+        start: Int?,
+        end: Int?,
+        reversed: Boolean
+    ): List<CIENPostInfo> {
         //通用下载时要保证查询时是follow状态，但还是要注意一点，通用下载与自己调用core一起进行时将不会抛出错误，但是follow管理将会混乱
         if (commonDown) {
             //跟随这个用户并记录跟随前状态
@@ -69,11 +74,12 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
 
         val pageNum = articlePageNum(creatorId)
         val planMap = getAllPlan(creatorId)
-        val infoArray = Array<List<CIENPostInfo>?>(pageNum) { null }
+        val range = postRange(start, end, reversed, pageNum - 1)
+        val infoArray = Array<List<CIENPostInfo>?>(range.count()) { null }
         coroutineScope {
-            for (i in 1..pageNum) {
+            for (i in range) {
                 launch(Dispatchers.IO) {
-                    infoArray[i - 1] = fetchPostsPaged(creatorId, i, planMap)
+                    infoArray[i] = fetchPostsPaged(creatorId, i + 1, planMap)
                 }
             }
         }
