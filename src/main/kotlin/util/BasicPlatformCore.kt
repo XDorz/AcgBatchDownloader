@@ -36,7 +36,6 @@ abstract class BasicPlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, 
         }
         //过滤掉类似../和./这种代表上一层文件和当前文件的命名
         s = fileLayerReg.replace(s) { result ->
-            println(result.value)
             result.value.replace(".", "")
         }
         return s
