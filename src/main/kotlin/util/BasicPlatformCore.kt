@@ -24,13 +24,20 @@ abstract class BasicPlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, 
     ) = Unit
 
     //去除标题中含有的windows不允许的文件名字符
-    private val invalidChars = listOf('\\', '/', ':', '*', '?', '"', '<', '>', '|', '.').map { it.toString() }
+    private val invalidChars = listOf('\\', '/', ':', '*', '?', '"', '<', '>', '|').map { it.toString() }
     private val reg = Regex("[^\\u0000-\\uFFFF]")
+    private val fileLayerReg = Regex("(\\.+)(([\\\\/]+)|$)")
+
     protected fun String.validFileName(): String {
         var s = this.trim()
         invalidChars.forEach {
             s = s.replace(it, "")
             //s = reg.replace(s,"")
+        }
+        //过滤掉类似../和./这种代表上一层文件和当前文件的命名
+        s = fileLayerReg.replace(s) { result ->
+            println(result.value)
+            result.value.replace(".", "")
         }
         return s
     }

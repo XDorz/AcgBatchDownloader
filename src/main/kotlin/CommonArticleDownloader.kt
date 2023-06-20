@@ -8,8 +8,9 @@ import kotlinx.coroutines.sync.withLock
 import util.*
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedDeque
+import kotlin.math.max
 
-class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: CommonFileInfo>(private val core: BasicPlatformCore<T,K,E>) {
+class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E : CommonFileInfo>(private val core: BasicPlatformCore<T, K, E>) {
     private val accMap = HashMap<String, Int>()
     private val requestGeneric: RequestUtil = core.requestGenerator
 
@@ -48,6 +49,7 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
      * @param download              是否进行下载，默认为是，如果不希望进行下载仅希望获取作品下载链接或希望打印作品名称等请设置为false并通过给定的两个filter获取作品的信息
      * @param start                 XX的获取起始范围 （不同的平台有不同的解释，请参见各个core的开头）
      * @param end                   XX的获取结束范围 （不同的平台有不同的解释，请参见各个core的开头）
+     * @param prefixIndexStart      作品分类保存的数字前缀起始，默认为空则是自动对比和判断之前下载的文件
      * @param reversed              是否翻转，默认为true，即正常浏览顺序，将最新的作品置于前面
      * @param printProgress         是否打印进度条
      */
@@ -58,6 +60,7 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
         download: Boolean = true,
         start: Int? = 0,
         end: Int? = null,
+        prefixIndexStart: Int? = null,
         reversed: Boolean = true,
         printProgress: Boolean = true,
         filterFile: CommonArticleDownloader<T, K, E>.(index: Int, K) -> Boolean = { _, _ -> true },
@@ -137,7 +140,21 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
             }
             coroutineScope {
                 downloadInfos.forEachIndexed { index, downloadInfo ->
-                    val titleFile = File("$savePath\\${index}_${downloadInfo.c_title}").apply {
+                    //此处判断prefixIndexStart是否被设置值，为null的话则遍历savePath下所有文件夹判断是否该续接上之前的index
+                    val indx = prefixIndexStart?.let {
+                        prefixIndexStart + index
+                    } ?: run {
+                        var max = -1
+                        val reg = Regex("^(\\d+)_.+$")
+                        File(savePath).listFiles()?.forEach { f ->
+                            reg.matchEntire(f.name)?.let { match ->
+                                max = max(match.groupValues.get(1).toInt(), max)
+                            }
+                        }
+                        max + 1
+                    }
+
+                    val titleFile = File("$savePath\\${indx}_${downloadInfo.c_title}").apply {
                         if (!exists()) mkdirs()
                     }
 
@@ -149,7 +166,7 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
                             titleFile.resolve(name).run {
                                 try {
                                     if (!exists()) createNewFile()
-                                }catch (e: Exception){
+                                } catch (e: Exception) {
                                     println(absolutePath)
                                     throw e
                                 }
@@ -164,7 +181,7 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
                                         }
                                     }
                                     senderP.trySend(true)
-                                }catch (e: Exception){
+                                } catch (e: Exception) {
                                     failed.add(absolutePath)
                                 }
                             }
@@ -192,7 +209,7 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
                     //额外下载
                     launch(Dispatchers.IO) {
                         val idmDownloadInfo = ConcurrentLinkedDeque<IdmDownloadInfo>()
-                        core.extractDownload(titleFile,downloadInfo, idmDownloadInfo,senderP)
+                        core.extractDownload(titleFile, downloadInfo, idmDownloadInfo, senderP)
                         mutex.withLock {
                             idmDownloadInfo.forEach {
                                 IdmUtil.sendLinkToIDM(it)
@@ -220,7 +237,7 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
 
     fun accClear() = accMap.clear()
 
-    fun List<String>.deleteFailed(){
+    fun List<String>.deleteFailed() {
         this.forEach {
             File(it).let {
                 if (it.exists()) it.delete()
@@ -229,7 +246,7 @@ class CommonArticleDownloader<T: CommonPostInfo,K: CommonDownloadInfo<E>,E: Comm
     }
 
     fun List<T>.println(transform: (T) -> CharSequence) {
-        println(this.joinToString("\n",transform = transform))
+        println(this.joinToString("\n", transform = transform))
     }
 
 }

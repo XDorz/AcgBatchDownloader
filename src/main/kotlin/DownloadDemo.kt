@@ -28,6 +28,7 @@ class DownloadDemo {
 //            CommonArticleDownloader(fanboxCore).apply {
 //                // 当你点开pixiv的某个作者主页的赞助时，能看到浏览器的url链接
 //                // https://XXXXXX.fanbox.cc/?utm_campaign=www_profile&utm_medium=site_flow&utm_source=pixiv
+//                //或者 https://www.fanbox.cc/@XXXXX
 //                //此处的域名的XXXXXX就是我们所需要的key
 //                //第三个参数表示不进行下载，我们在此处只进行作品统计
 //                commonDownload("XXXXXX","G://your//save//path",false ,filterFile = { _,_ ->
@@ -55,6 +56,7 @@ class DownloadDemo {
                         true,
                         0,
                         10,
+                        0,
                         false,
                         filterFile = { _, cienDownloadInfo ->
                             //您可以在此处修改任意信息
