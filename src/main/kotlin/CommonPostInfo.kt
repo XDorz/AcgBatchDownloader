@@ -1,10 +1,10 @@
 import java.util.*
 
 open class CommonPostInfo(
-    val c_postId: String,
-    val c_title: String,
-    val c_priceRequire: Int,
-    val c_publishedDatetime: Date,
-    val c_restricted: Boolean,
-    val c_access: Boolean
+    val _cpostId: String,
+    val _ctitle: String,
+    val _cpriceRequire: Int,
+    val _cpublishedDatetime: Date,
+    val _crestricted: Boolean,
+    val _caccess: Boolean
 )

@@ -1,1 +1,6 @@
-open class CommonFileInfo(val c_name: String, val c_href: String, val c_extension: String)
+open class CommonFileInfo(
+    val _cname: String,
+    val _chref: String,
+    val _cextension: String,
+    val _csaveRelativePath: String
+)

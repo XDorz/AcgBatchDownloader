@@ -6,6 +6,7 @@ import CommonPostInfo
 import IdmDownloadInfo
 import kotlinx.coroutines.channels.SendChannel
 import java.io.File
+import java.text.MessageFormat
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.math.max
 import kotlin.math.min
@@ -27,7 +28,6 @@ abstract class BasicPlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, 
     private val invalidChars = listOf('\\', '/', ':', '*', '?', '"', '<', '>', '|').map { it.toString() }
     private val reg = Regex("[^\\u0000-\\uFFFF]")
     private val fileLayerReg = Regex("(\\.+)(([\\\\/]+)|$)")
-
     protected fun String.validFileName(): String {
         var s = this.trim()
         invalidChars.forEach {
@@ -63,4 +63,25 @@ abstract class BasicPlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, 
         }
         return (before..after)
     }
+
+    protected fun String.requiredOneParam() = { param1: String ->
+        MessageFormat.format(this, param1)
+    }
+
+    protected fun String.requiredTwoParam() = { param1: String, param2: String ->
+        MessageFormat.format(this, param1, param2)
+    }
+
+    protected fun String.requiredThreeParam() = { param1: String, param2: String, param3: String ->
+        MessageFormat.format(this, param1, param2, param3)
+    }
+
+    protected fun String.requiredFourParam() = { param1: String, param2: String, param3: String, param4: String ->
+        MessageFormat.format(this, param1, param2, param3, param4)
+    }
+
+    protected fun String.requiredFiveParam() =
+        { param1: String, param2: String, param3: String, param4: String, param5: String ->
+            MessageFormat.format(this, param1, param2, param3, param4, param5)
+        }
 }

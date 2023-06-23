@@ -16,20 +16,19 @@ import org.jsoup.nodes.Element
 import util.BasicPlatformCore
 import util.RequestUtil
 import java.io.File
-import java.text.MessageFormat
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedDeque
 
 //在CI-EN中，start与end的含义解释为 [页数] 排除第一页作者固定的作品，每页有5个作品
 class CI_ENCore(private val requestGeneric: RequestUtil) :
-    BasicPlatformCore<CIENPostInfo, CIENDownloadInfo, CommonFileInfo>() {
+    BasicPlatformCore<CIENPostInfo, CIENDownloadInfo, CIENFileInfo>() {
 
-    private val creatorApi = "https://ci-en.dlsite.com/creator/{0}/article?mode=detail&page={1}"
-    private val detailApi = "https://ci-en.dlsite.com/creator/{0}/article/{1}"
+    private val creatorApi = "https://ci-en.dlsite.com/creator/{0}/article?mode=detail&page={1}".requiredTwoParam()
+    private val detailApi = "https://ci-en.dlsite.com/creator/{0}/article/{1}".requiredTwoParam()
     private val imgGalleryApi = "https://ci-en.dlsite.com/api/creator/gallery/images"
     private val imgPathApi = "https://ci-en.dlsite.com/api/creator/gallery/imagePath"
-    private val planApi = "https://ci-en.dlsite.com/creator/{0}/plan"
+    private val planApi = "https://ci-en.dlsite.com/creator/{0}/plan".requiredOneParam()
 
     private val dateRegex = Regex("\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}")
 
@@ -41,7 +40,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
     //TODO("当请求过快返回403 Forbidden的时候delay一段时间 这段时间约莫5分钟？也很有可能是每个整点，像10,20，也有可能每5分钟重置一次？ 测试时46m16s前出现的403,50m多一点恢复正常 解决问题的关键点可能在RequestUtil 目前想法是为其配置请求模式，或是为其传入异常处理函数 ")
     //获取最大cien作品的最大页数
     tailrec fun articlePageNum(creatorId: String, pageNum: Int = 1000): Int {
-        val html = requestGeneric.getBody(MessageFormat.format(creatorApi, creatorId, pageNum.toString())).html()
+        val html = requestGeneric.getBody(creatorApi(creatorId, pageNum.toString())).html()
         return html.getElementsByClass("pagerItem").last()?.previousElementSibling()?.text()?.toInt()?.let {
             if (it > pageNum) {
                 return articlePageNum(creatorId, pageNum * 2)
@@ -98,7 +97,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
     //这是个标题标签，里面带有一个 <a> 标签用于跳转到详细文章内容，该 <a> 标签会影响links的获取
     val articleIdRegex = Regex("^article-(\\d+)$")
     suspend fun fetchPostsPaged(creatorId: String, pageNum: Int, planMap: Map<String, Int>): List<CIENPostInfo> {
-        val html = requestGeneric.getBody(MessageFormat.format(creatorApi, creatorId, pageNum)).html()
+        val html = requestGeneric.getBody(creatorApi(creatorId, pageNum.toString())).html()
         val postsArray: Array<CIENPostInfo?>
         coroutineScope {
             //不知为何文章的tag现在带上 is-article 这个class了
@@ -201,11 +200,11 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
 
         var hascontent = false
 
-        val imgHref = planedList.fold(mutableListOf<CommonFileInfo>()) { acc, cienPlanedInfo ->
+        val imgHref = planedList.fold(mutableListOf<CIENFileInfo>()) { acc, cienPlanedInfo ->
             acc.addAll(cienPlanedInfo.imgInfos)
             acc
         }.apply { hascontent = hascontent or isNotEmpty() }
-        val fileHref = planedList.fold(mutableListOf<CommonFileInfo>()) { acc, cienPlanedInfo ->
+        val fileHref = planedList.fold(mutableListOf<CIENFileInfo>()) { acc, cienPlanedInfo ->
             acc.addAll(cienPlanedInfo.fileInfos)
             acc
         }.apply { hascontent = hascontent or isNotEmpty() }
@@ -219,8 +218,8 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
     //对外开放可能导致支援计划按钮的链接被错误的加入到links中
     private fun analyzeLink(html: Element) = html.getElementsByTag("a").map { it.attr("href") }.toList()
 
-    suspend fun analyzeImage(html: Element): MutableList<CommonFileInfo> {
-        val imgInfos = ArrayList<CommonFileInfo>()
+    suspend fun analyzeImage(html: Element): MutableList<CIENFileInfo> {
+        val imgInfos = ArrayList<CIENFileInfo>()
         //普通图片
         html.getElementsByTag("vue-l-image").forEachIndexed { index, element ->
             val imgPath = element.attr("data-raw")
@@ -230,7 +229,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
                 TODO("DO STH  目前已知作者头像也会用到 vue-l-image这个标签，但是没有data-raw这个属性")
             } else {
                 val extension = imgPath.urlGetExtension() ?: "png"
-                imgInfos.add(CommonFileInfo("$index.$extension", imgPath, extension))
+                imgInfos.add(CIENFileInfo("$index.$extension", imgPath, extension))
             }
         }
 
@@ -256,8 +255,8 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
         return imgInfos
     }
 
-    fun analyzeFile(html: Element): MutableList<CommonFileInfo> {
-        val fileInfos = ArrayList<CommonFileInfo>()
+    fun analyzeFile(html: Element): MutableList<CIENFileInfo> {
+        val fileInfos = ArrayList<CIENFileInfo>()
         //解析在线播放的真实url
         html.getElementsByTag("vue-file-player").forEachIndexed { index, player ->
             val info = analyzeOnlinePlayerHref(player)
@@ -274,7 +273,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
             downloadBlock.getElementsByTag("a").forEach { info ->
                 val href = info.attr("href")
                 val name = info.attr("download").ifBlank { prefixUUID() + "_" + (href.urlGetFileName() ?: "") }
-                fileInfos.add(CommonFileInfo(name, href, name.extension()))
+                fileInfos.add(CIENFileInfo(name, href, name.extension()))
             }
         }
         return fileInfos
@@ -313,7 +312,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
         }
     }
 
-    private suspend fun analyzeImageHref(imgEle: Element?): List<CommonFileInfo?>? {
+    private suspend fun analyzeImageHref(imgEle: Element?): List<CIENFileInfo?>? {
         if (imgEle == null) return null
         val title = imgEle.attr("title").ifBlank { prefixUUID() }
         val hash = imgEle.attr("hash")
@@ -321,7 +320,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
         val time = imgEle.attr("time")
         val galleryHref = "$imgGalleryApi?hash=$hash&gallery_id=$galleryId&time=$time"
         val imgArray = requestGeneric.getBody(galleryHref).toJson().getJSONArray("imgList")
-        val imgs = Array<CommonFileInfo?>(imgArray.size) { null }
+        val imgs = Array<CIENFileInfo?>(imgArray.size) { null }
         coroutineScope {
             for (page in 0 until imgArray.size) {
                 launch(Dispatchers.IO) {
@@ -333,7 +332,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
                         imgs[page] = null
                         return@launch
                     }
-                    imgs[page] = CommonFileInfo("${title}_$page.$extension", imgPath, extension)
+                    imgs[page] = CIENFileInfo("${title}_$page.$extension", imgPath, extension)
                 }
             }
         }
@@ -342,7 +341,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
 
 
     //传入空元素与网页给出资源在视频和音频以外的类型时会返回null
-    private fun analyzeOnlinePlayerHref(videoEle: Element?): CommonFileInfo? {
+    private fun analyzeOnlinePlayerHref(videoEle: Element?): CIENFileInfo? {
         if (videoEle == null) return null
         val medium = when (videoEle.attr("file-type")) {
             "audio" -> "audio-web.mp3"
@@ -354,13 +353,13 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
         val extension = fileName.extension().ifBlank { medium.extension() }
 
         val href = videoEle.attr("base-path") + medium + "?" + videoEle.attr("auth-key")
-        return CommonFileInfo(fileName, href, extension)
+        return CIENFileInfo(fileName, href, extension)
     }
 
     //获取该创作者所有的支持计划
     fun getAllPlan(creatorId: String): Map<String, Int> {
         val map = mutableMapOf<String, Int>()
-        requestGeneric.proxyGetBody(MessageFormat.format(planApi, creatorId))
+        requestGeneric.proxyGetBody(planApi(creatorId))
             .html().getElementsByClass("c-planList-item").forEach { item ->
                 val price = item.attr("id").toInt()
                 val name: String
@@ -392,14 +391,14 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
 
     //跟随作者，返回值代表有没有执行跟随这个操作，返回null代表调用跟随功能时出现错误，可能为网页变更
     fun follow(creatorId: String): Boolean? {
-        val html = requestGeneric.getBody(MessageFormat.format(planApi, creatorId)).html()
+        val html = requestGeneric.getBody(planApi(creatorId)).html()
         return html.getElementById("0")?.let {
             it.getElementsByTag("form").firstOrNull()?.let { form ->
                 val params = ArrayList<String>()
                 form.getElementsByTag("input").forEach { input ->
                     params.add("${input.attr("name")}=${input.attr("value")}")
                 }
-                requestGeneric.genericPost(MessageFormat.format(planApi, creatorId)).body(params.joinToString("&"))
+                requestGeneric.genericPost(planApi(creatorId)).body(params.joinToString("&"))
                     .execute()
                 true
             } ?: false
@@ -408,7 +407,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
 
     //取消跟随作者，返回值代表有没有执行这个操作，返回null代表调用取消跟随功能时出现错误，可能为网页变更
     fun unFollow(creatorId: String): Boolean? {
-        val html = requestGeneric.getBody(MessageFormat.format(planApi, creatorId)).html()
+        val html = requestGeneric.getBody(planApi(creatorId)).html()
         return html.getElementById("0")?.let {
             val href = it.getElementsByTag("a").toList().filter { atag ->
                 atag.classNames().contains("e-button")
@@ -420,7 +419,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
 
     //查询是否跟随了这个创作者，返回null代表出错，可能网页出现变更
     fun isFollowed(creatorId: String): Boolean? {
-        val html = requestGeneric.getBody(MessageFormat.format(planApi, creatorId)).html()
+        val html = requestGeneric.getBody(planApi(creatorId)).html()
         return html.getElementById("0")?.let {
             it.getElementsByTag("form").firstOrNull() == null
         }
@@ -463,18 +462,21 @@ data class CIENPostInfo(
 
 data class CIENDownloadInfo(
     var title: String,
-    var imgHref: MutableList<CommonFileInfo>,
-    var fileHref: MutableList<CommonFileInfo>,
+    var imgHref: MutableList<CIENFileInfo>,
+    var fileHref: MutableList<CIENFileInfo>,
     var links: List<String>,
     val planedInfos: List<CIENPlanedInfo>,
     val hascontent: Boolean,
-) : CommonDownloadInfo<CommonFileInfo>(title, imgHref, fileHref, hascontent)
+) : CommonDownloadInfo<CIENFileInfo>(title, imgHref, fileHref, hascontent)
 
 //考虑到通用下载时并不使用这个属性，故此处全为val
 data class CIENPlanedInfo(
     val name: String,
     val fee: Int,
-    val imgInfos: List<CommonFileInfo>,
-    val fileInfos: List<CommonFileInfo>,
+    val imgInfos: List<CIENFileInfo>,
+    val fileInfos: List<CIENFileInfo>,
     val links: List<String>
 )
+
+data class CIENFileInfo(val name: String, val href: String, val extension: String) :
+    CommonFileInfo(name, href, extension, "")

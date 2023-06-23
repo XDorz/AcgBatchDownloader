@@ -11,7 +11,6 @@ import org.jsoup.internal.StringUtil
 import util.BasicPlatformCore
 import util.RequestUtil
 import java.io.File
-import java.text.MessageFormat
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -29,8 +28,8 @@ class FanboxCore(private val requestGeneric: RequestUtil) :
      *
      * 故该接口是省略了几个get参数并修改了limit中的数值后的[魔改]请求，想要安全可以替换为原接口
      */
-    private val creatorApi = "https://api.fanbox.cc/post.listCreator?creatorId={0}&limit=300"
-    private val detailApi = "https://api.fanbox.cc/post.info?postId={0}"
+    private val creatorApi = "https://api.fanbox.cc/post.listCreator?creatorId={0}&limit=300".requiredOneParam()
+    private val detailApi = "https://api.fanbox.cc/post.info?postId={0}".requiredOneParam()
 
     private val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
 
@@ -49,7 +48,7 @@ class FanboxCore(private val requestGeneric: RequestUtil) :
         end: Int?,
         reversed: Boolean
     ): List<FanboxPostInfo> {
-        val list = fetchPostsRec(MessageFormat.format(creatorApi, authorName))
+        val list = fetchPostsRec(creatorApi(authorName))
         val range = postRange(start, end, reversed, list.size - 1)
         return list.subList(range.first, range.last + 1)
     }
@@ -100,7 +99,7 @@ class FanboxCore(private val requestGeneric: RequestUtil) :
     }
 
     override suspend fun catchPostDownloadInfo(postInfo: FanboxPostInfo): FanboxDownloadInfo {
-        val json = requestGeneric.getBody(MessageFormat.format(detailApi, postInfo.postId))
+        val json = requestGeneric.getBody(detailApi(postInfo.postId))
         json.check("作品附件")
 
         var title = ""
@@ -229,4 +228,4 @@ data class FanboxDownloadInfo(
 ) : CommonDownloadInfo<FanboxFileInfo>(title, imgHref, fileHref, hasContent)
 
 data class FanboxFileInfo(val name: String, val href: String, val extension: String) :
-    CommonFileInfo(name, href, extension)
+    CommonFileInfo(name, href, extension, "")

@@ -113,7 +113,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                     launch(Dispatchers.IO) {
                         val downloadInfo = core.catchPostDownloadInfo(creatorInfo)
                         //TODO("使被filterFile修改过的 c_hasContent 可在下载中体现影响")
-                        if (downloadInfo.c_hasContent) {
+                        if (downloadInfo._chasContent) {
                             array[index] = downloadInfo
                         }
                     }
@@ -125,12 +125,16 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
             val downloadInfos =
                 array.filterNotNull().map { it as K }.filterIndexed { i, d -> filterFile(i, d) }.reversed()
             downloadInfos.forEach {
-                totalP += it.c_imgHref.size
-                totalFile += it.c_fileHref.size
+                totalP += it._cimgHref.size
+                totalFile += it._cfileHref.size
                 totalP += core.extractImgNum(it)
                 totalFile += core.extractFileNum(it)
             }
-            if (!download) return@runBlocking
+            if (!download) {
+                println()
+                println("图片:$totalP  附件:$totalFile")
+                return@runBlocking
+            }
 
 
             //文件夹创建，图片下载，附件链接发送
@@ -154,17 +158,18 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                         max + 1
                     }
 
-                    val titleFile = File("$savePath\\${indx}_${downloadInfo.c_title}").apply {
+                    val titleFile = File("$savePath\\${indx}_${downloadInfo._ctitle}").apply {
                         if (!exists()) mkdirs()
                     }
 
                     //投稿图片下载
-                    downloadInfo.c_imgHref.forEach { T ->
-                        val name = T.c_name
-                        val href = T.c_href
+                    downloadInfo._cimgHref.forEach { T ->
+                        val name = T._csaveRelativePath + T._cname
+                        val href = T._chref
                         launch(Dispatchers.IO) {
                             titleFile.resolve(name).run {
                                 try {
+                                    if (!parentFile.exists()) parentFile.mkdirs()
                                     if (!exists()) createNewFile()
                                 } catch (e: Exception) {
                                     println(absolutePath)
@@ -190,9 +195,9 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
 
                     //附件发送IDM
                     launch(Dispatchers.IO) {
-                        downloadInfo.c_fileHref.forEach { T ->
-                            val name = T.c_name
-                            val href = T.c_href
+                        downloadInfo._cfileHref.forEach { T ->
+                            val name = T._cname
+                            val href = T._chref
                             mutex.withLock {
                                 IdmUtil.sendLinkToIDM(
                                     href = href,
