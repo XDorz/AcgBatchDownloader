@@ -41,7 +41,12 @@ class FanboxCore(private val requestGeneric: RequestUtil) :
     override val requestGenerator: RequestUtil
         get() = requestGeneric
 
-    //fanbox一次请求最多能返回300条作品信息，返回量大而且json解析在内存中，效率非常高，故此处选择直接获取全部作品信息做一个剪裁
+    /**
+     *  当你点开pixiv的某个作者主页的赞助时，能看到浏览器的url链接
+     *  https://XXXXXX.fanbox.cc/?utm_campaign=www_profile&utm_medium=site_flow&utm_source=pixiv
+     * 或者 https://www.fanbox.cc/@XXXXX
+     * 此处的域名的XXXXXX就是我们所需要的key
+     */
     override suspend fun fetchPosts(
         authorName: String,
         start: Int?,
@@ -50,6 +55,7 @@ class FanboxCore(private val requestGeneric: RequestUtil) :
     ): List<FanboxPostInfo> {
         val list = fetchPostsRec(creatorApi(authorName))
         val range = postRange(start, end, reversed, list.size - 1)
+        //fanbox一次请求最多能返回300条作品信息，返回量大而且json解析在内存中，效率非常高，故此处选择直接获取全部作品信息做一个剪裁
         return list.subList(range.first, range.last + 1)
     }
 
@@ -219,13 +225,13 @@ data class FanboxPostInfo(
     val access: Boolean,
 ) : CommonPostInfo(postId, title, priceRequire, publishedDatetime, restricted, access)
 
-data class FanboxDownloadInfo(
-    var title: String,
-    var imgHref: MutableList<FanboxFileInfo>,
-    var fileHref: MutableList<FanboxFileInfo>,
+class FanboxDownloadInfo(
+    title: String,
+    imgInfos: MutableList<FanboxFileInfo>,
+    fileInfos: MutableList<FanboxFileInfo>,
     var coverHref: String?,
-    var hasContent: Boolean,
-) : CommonDownloadInfo<FanboxFileInfo>(title, imgHref, fileHref, hasContent)
+    hasContent: Boolean,
+) : CommonDownloadInfo<FanboxFileInfo>(title, imgInfos, fileInfos, hasContent)
 
-data class FanboxFileInfo(val name: String, val href: String, val extension: String) :
+class FanboxFileInfo(name: String, href: String, extension: String) :
     CommonFileInfo(name, href, extension, "")

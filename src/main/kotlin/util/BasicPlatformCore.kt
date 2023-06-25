@@ -11,6 +11,12 @@ import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * 平台相关core的基础实现，并在此基础上加入了许多通用工具
+ *
+ * 更多内容详见
+ * @see PlatformCore
+ */
 abstract class BasicPlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, E : CommonFileInfo> :
     PlatformCore<T, K, E> {
     override suspend fun preHook() = Unit
@@ -63,6 +69,8 @@ abstract class BasicPlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, 
         }
         return (before..after)
     }
+
+    //以下是对请求api的wrapper，通过限定参数来提高准确性
 
     protected fun String.requiredOneParam() = { param1: String ->
         MessageFormat.format(this, param1)

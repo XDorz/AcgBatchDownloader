@@ -8,7 +8,14 @@ import kotlinx.coroutines.channels.SendChannel
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedDeque
 
-//该接口为CommonArticleDownloader 通用作品下载 服务
+/**
+ * 不同平台类型的core接口
+ * 该接口为CommonArticleDownloader 通用作品下载 服务
+ *
+ * @param T                 通用投稿信息展示模型
+ * @param K                 通用投稿内容展示模型
+ * @param E                 通用文件下载信息展示模型
+ */
 interface PlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, E : CommonFileInfo> {
     //网络请求生成器，发送带cookie等信息的对应平台请求
     val requestGenerator: RequestUtil
@@ -31,8 +38,8 @@ interface PlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, E : Common
      * 虽然start和end的解释与平台有关，但是我们仍然能定义些通用解释，所有core都会遵守以下约定：
      * 当start/end为null时代表范围内最后一个(其定义与平台有关，可能为作品，可能为页数)
      * 当start/end为负数时代表从最后的范围往前进多少，如-1是倒数第二个(倒数第一个为null)，为0则是第一项
-     *  reversed的值并不影响filter中的index的顺序
-     *  当start的计算值在end的计算值之后时，会返回他们之间的交集
+     * reversed的值并不影响filter中的index的顺序
+     * 当start的计算值在end的计算值之后时，会返回他们之间的交集
      */
     suspend fun fetchPosts(key: String, start: Int? = 0, end: Int? = null, reversed: Boolean = true): List<T>
 

@@ -113,7 +113,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                     launch(Dispatchers.IO) {
                         val downloadInfo = core.catchPostDownloadInfo(creatorInfo)
                         //TODO("使被filterFile修改过的 c_hasContent 可在下载中体现影响")
-                        if (downloadInfo._chasContent) {
+                        if (downloadInfo.hasContent) {
                             array[index] = downloadInfo
                         }
                     }
@@ -125,8 +125,8 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
             val downloadInfos =
                 array.filterNotNull().map { it as K }.filterIndexed { i, d -> filterFile(i, d) }.reversed()
             downloadInfos.forEach {
-                totalP += it._cimgHref.size
-                totalFile += it._cfileHref.size
+                totalP += it.imgInfos.size
+                totalFile += it.fileInfos.size
                 totalP += core.extractImgNum(it)
                 totalFile += core.extractFileNum(it)
             }
@@ -158,14 +158,14 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                         max + 1
                     }
 
-                    val titleFile = File("$savePath\\${indx}_${downloadInfo._ctitle}").apply {
+                    val titleFile = File("$savePath\\${indx}_${downloadInfo.title}").apply {
                         if (!exists()) mkdirs()
                     }
 
                     //投稿图片下载
-                    downloadInfo._cimgHref.forEach { T ->
-                        val name = T._csaveRelativePath + T._cname
-                        val href = T._chref
+                    downloadInfo.imgInfos.forEach { T ->
+                        val name = T.saveRelativePath + T.name
+                        val href = T.href
                         launch(Dispatchers.IO) {
                             titleFile.resolve(name).run {
                                 try {
@@ -195,15 +195,15 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
 
                     //附件发送IDM
                     launch(Dispatchers.IO) {
-                        downloadInfo._cfileHref.forEach { T ->
-                            val name = T._cname
-                            val href = T._chref
+                        downloadInfo.fileInfos.forEach { T ->
+                            val name = T.name
+                            val href = T.href
                             mutex.withLock {
                                 IdmUtil.sendLinkToIDM(
                                     href = href,
                                     cookie = requestGeneric.cookie,
                                     referer = requestGeneric.referer,
-                                    localPath = titleFile.absolutePath,
+                                    localPath = titleFile.resolve(T.saveRelativePath).absolutePath,
                                     localFileName = name
                                 )
                                 fileSend++

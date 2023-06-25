@@ -54,6 +54,11 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
     private var isFollow: Boolean? = null
     private var cId: String? = null
     private var commonDown = false
+
+    /**
+     * https://ci-en.dlsite.com/creator/14266
+     * 此时creator后面的那个数字(即14266)就是所需的creatroId
+     */
     override suspend fun fetchPosts(
         creatorId: String,
         start: Int?,
@@ -200,11 +205,11 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
 
         var hascontent = false
 
-        val imgHref = planedList.fold(mutableListOf<CIENFileInfo>()) { acc, cienPlanedInfo ->
+        val imgInfos = planedList.fold(mutableListOf<CIENFileInfo>()) { acc, cienPlanedInfo ->
             acc.addAll(cienPlanedInfo.imgInfos)
             acc
         }.apply { hascontent = hascontent or isNotEmpty() }
-        val fileHref = planedList.fold(mutableListOf<CIENFileInfo>()) { acc, cienPlanedInfo ->
+        val fileInfos = planedList.fold(mutableListOf<CIENFileInfo>()) { acc, cienPlanedInfo ->
             acc.addAll(cienPlanedInfo.fileInfos)
             acc
         }.apply { hascontent = hascontent or isNotEmpty() }
@@ -212,7 +217,7 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
             acc.addAll(cienPlanedInfo.links)
             acc
         }.apply { hascontent = hascontent or isNotEmpty() }
-        return CIENDownloadInfo(postInfo.title.validFileName(), imgHref, fileHref, links, planedList, hascontent)
+        return CIENDownloadInfo(postInfo.title.validFileName(), imgInfos, fileInfos, links, planedList, hascontent)
     }
 
     //对外开放可能导致支援计划按钮的链接被错误的加入到links中
@@ -460,14 +465,14 @@ data class CIENPostInfo(
     val planedMap: Map<String, Int>,
 ) : CommonPostInfo(postId, title, priceRequire, publishedDatetime, restricted, access)
 
-data class CIENDownloadInfo(
-    var title: String,
-    var imgHref: MutableList<CIENFileInfo>,
-    var fileHref: MutableList<CIENFileInfo>,
+class CIENDownloadInfo(
+    title: String,
+    imgInfos: MutableList<CIENFileInfo>,
+    fileInfos: MutableList<CIENFileInfo>,
     var links: List<String>,
     val planedInfos: List<CIENPlanedInfo>,
-    val hascontent: Boolean,
-) : CommonDownloadInfo<CIENFileInfo>(title, imgHref, fileHref, hascontent)
+    hasContent: Boolean,
+) : CommonDownloadInfo<CIENFileInfo>(title, imgInfos, fileInfos, hasContent)
 
 //考虑到通用下载时并不使用这个属性，故此处全为val
 data class CIENPlanedInfo(
@@ -478,5 +483,5 @@ data class CIENPlanedInfo(
     val links: List<String>
 )
 
-data class CIENFileInfo(val name: String, val href: String, val extension: String) :
+class CIENFileInfo(name: String, href: String, extension: String) :
     CommonFileInfo(name, href, extension, "")
