@@ -162,6 +162,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                         if (!exists()) mkdirs()
                     }
 
+                    //TODO("解决../和./等问题")
                     //投稿图片下载
                     downloadInfo.imgInfos.forEach { T ->
                         val name = T.saveRelativePath + T.name
