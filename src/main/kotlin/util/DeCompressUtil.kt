@@ -116,6 +116,8 @@ class DeCompressUtil {
         val zipSavedFile = saveFile.zipSavedFile(zipFile, mode)
         val encryptedFile: MutableList<ISimpleInArchiveItem> = ArrayList()
         val innerZip: MutableList<File> = ArrayList()
+        //有文件解压失败标志，当该标志为true时，无论deleteZip为何都不删除该原始zip文件
+        var deCompressFailed: Boolean = false
         for (item in archive.simpleInterface.archiveItems) {
             if (item.isFolder) {
                 //SevenZipJBinding 这个库好像会递归的获得所有文件与文件夹(一般是文件在先，文件夹后于它包含的文件)
@@ -127,7 +129,7 @@ class DeCompressUtil {
                 val realFile = unzipItem(item, zipSavedFile, mode, zipFile, list, null)
                 realFile?.let {
                     if (recursion && it.extension.lowercase() in compressSuffix) innerZip.add(it)
-                }
+                } ?: apply { deCompressFailed = true }
             } else {
                 encryptedFile.add(item)
                 continue
@@ -151,7 +153,7 @@ class DeCompressUtil {
             //存储加密项中的递归解压,realFile为空代表解压失败的情形
             realFile?.let { file ->
                 if (recursion && file.extension.lowercase() in compressSuffix) innerZip.add(file)
-            }
+            } ?: apply { deCompressFailed = true }
         }
         //递归解压加密项中的zip
         if (recursion) {
@@ -169,7 +171,7 @@ class DeCompressUtil {
             archive.close()
             accessFile.close()
         }
-        if (deleteZip) zipFile.delete()
+        if (deleteZip && !deCompressFailed) zipFile.delete()
     }
 
     private fun unzipItem(
@@ -193,7 +195,8 @@ class DeCompressUtil {
                 try {
                     it.createNewFile()
                 } catch (e: IOException) {
-                    println(it.absolutePath)
+                    list.add(zipFile.absolutePath + "\\[${item.path}]")
+                    return null
                 }
                 it
             }
@@ -217,9 +220,9 @@ class DeCompressUtil {
                 generator(item.itemIndex, item.path, zipFile)?.let { password ->
                     item.extractSlow(method, password)
                 } ?: let {
-                    println("###CompressWarning:请为压缩文件加密压缩项给出一个密码，否则该文件数据无法解压---`${saveFile.absolutePath}\\[${item.path}]` ###")
+                    println("###DeCompressWarning:请为压缩文件加密压缩项给出一个密码，否则该文件数据无法解压---`${saveFile.absolutePath}\\[${item.path}]` ###")
                     list.add(zipFile.absolutePath + "\\[${item.path}]")
-                    item.extractSlow(method)
+                    //item.extractSlow(method)
                 }
             } ?: item.extractSlow(method)
         } catch (e: Exception) {
