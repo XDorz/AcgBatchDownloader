@@ -112,10 +112,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                 for ((index, creatorInfo) in posts.withIndex()) {
                     launch(Dispatchers.IO) {
                         val downloadInfo = core.catchPostDownloadInfo(creatorInfo)
-                        //TODO("使被filterFile修改过的 c_hasContent 可在下载中体现影响")
-                        if (downloadInfo.hasContent) {
-                            array[index] = downloadInfo
-                        }
+                        array[index] = downloadInfo
                     }
                 }
             }
@@ -123,7 +120,8 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
             //数据统计
             state = 2
             val downloadInfos =
-                array.filterNotNull().map { it as K }.filterIndexed { i, d -> filterFile(i, d) }.reversed()
+                array.filterNotNull().map { it as K }.filterIndexed { i, d -> filterFile(i, d) }
+                    .filter { d -> d.hasContent }.reversed()
             downloadInfos.forEach {
                 totalP += it.imgInfos.size
                 totalFile += it.fileInfos.size
@@ -162,7 +160,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                         if (!exists()) mkdirs()
                     }
 
-                    //TODO("解决../和./等问题")
+
                     //投稿图片下载
                     downloadInfo.imgInfos.forEach { T ->
                         val name = T.saveRelativePath + T.name
@@ -180,6 +178,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                                 //TODO("添加进一步错误处理，如delay一段时间后重试  注意并发问题")
                                 //2023/6/13 不同平台不同风控很难处理，在PlatformCore 中为每个平台设置一个专门的风控处理函数的代价有点高，还要考虑并发带来的问题
                                 //而且风控策略可能会随时间更新，也不一定保证能有效果，风控可能和梯子ip有关，可能和账号有关，可能和作者有关，这个功能不太可能去实现
+                                //2023/7/6 也许每个core可以设置一个值，当爬取内容超过这个值时触发慢速爬取，不使用多线程或者yield将主要任务交给下载
                                 try {
                                     outputStream().use { fout ->
                                         requestGeneric.genericGet(href).execute().bodyStream().use {
