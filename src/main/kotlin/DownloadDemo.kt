@@ -1,5 +1,5 @@
 import kotlinx.coroutines.runBlocking
-import util.CompressUtil
+import util.DeCompressUtil
 import util.RequestUtil
 import util.core.CI_ENCore
 import kotlin.system.measureTimeMillis
@@ -24,23 +24,23 @@ class DownloadDemo {
 
     companion object {
         //fanbox下载
-        fun main() {
-            CommonArticleDownloader(fanboxCore).apply {
-                // 当你点开pixiv的某个作者主页的赞助时，能看到浏览器的url链接
-                // https://XXXXXX.fanbox.cc/?utm_campaign=www_profile&utm_medium=site_flow&utm_source=pixiv
-                //或者 https://www.fanbox.cc/@XXXXX
-                //此处的域名的XXXXXX就是我们所需要的key
-                //第三个参数表示不进行下载，我们在此处只进行作品统计
-                commonDownload("XXXXXX", "G://your//save//path", false, filterFile = { _, _ ->
-                    accumulator("postNum")
-                    true
-                }) { _, fanboxPostInfo ->
-                    fanboxPostInfo.adult        //lambada会将这个表达式的值返回
-                }
-                println("该作者的成人作品投稿有 ${getAcc("postNum")} 个")
-                accClear()
-            }
-        }
+//        fun main() {
+//            CommonArticleDownloader(fanboxCore).apply {
+//                // 当你点开pixiv的某个作者主页的赞助时，能看到浏览器的url链接
+//                // https://XXXXXX.fanbox.cc/?utm_campaign=www_profile&utm_medium=site_flow&utm_source=pixiv
+//                //或者 https://www.fanbox.cc/@XXXXX
+//                //此处的域名的XXXXXX就是我们所需要的key
+//                //第三个参数表示不进行下载，我们在此处只进行作品统计
+//                commonDownload("XXXXXX", "G://your//save//path", false, filterFile = { _, _ ->
+//                    accumulator("postNum")                  //使用内置的计数器计数，它是线程不安全的，filter中的代码块不会在多线程中调用，如果您想要在多线程环境下使用该计数器，推荐使用锁等结构保证线程安全性
+//                    true
+//                }) { _, fanboxPostInfo ->
+//                    fanboxPostInfo.adult        //lambada会将这个表达式的值返回
+//                }
+//                println("该作者的成人作品投稿有 ${getAcc("postNum")} 个")
+//                accClear()                      //清空内置计数器，每一个通用下载器实例都含有一个计数器实例
+//            }
+//        }
 
         //TODO("添加onedrive的demo")
 
@@ -50,7 +50,8 @@ class DownloadDemo {
 //                //此处的14266为用户id  例如你浏览一个用户，你可以看到浏览器URL为
 //                //https://ci-en.dlsite.com/creator/14266
 //                //此时creator后面的那个数字(即14266)就是用户id
-//                //这里指定start，end表示下载第0-10页，但是reversed表示逆转列表，所以是下载第max-10 到 max页，也就是最早的10页作品
+//                //这里指定start，end表示下载第0-10页，在reversed为true时，表示第0-10页(正常浏览时所看到的页数顺序)
+//                //此处表示下载第max-10 到 max页，也就是最早的10页作品(正常浏览时看到的是最新最晚发布的作品)
 //                val fail =
 //                    commonDownload(
 //                        "14266",
@@ -58,8 +59,7 @@ class DownloadDemo {
 //                        true,
 //                        0,
 //                        10,
-//                        0,
-//                        false,
+//                        reversed = false,
 //                        filterFile = { _, cienDownloadInfo ->
 //                            //您可以在此处修改任意信息
 //                            //去除所有文件的下载
@@ -81,13 +81,18 @@ class DownloadDemo {
 //            }
 //        }
 
+        //oneDrive 下载
+        fun main() {
+
+        }
+
     }
 }
 
-//解压文件
+//解压缩一个目录下的压缩文件
 fun main() = runBlocking {
     val timeMillis = measureTimeMillis {
-        val failed = CompressUtil().compressAll("G:\\your\\post\\saved\\path") { _, fileName, file ->
+        val failed = DeCompressUtil().deCompressAll("G:\\your\\post\\saved\\path") { _, fileName, file ->
             //如果这个文件以password打头，使用这个文件名作为密码  (请按自己的实际来，此处仅为演示)
             if (fileName.startsWith("password")) {
                 fileName.replace("password", "")

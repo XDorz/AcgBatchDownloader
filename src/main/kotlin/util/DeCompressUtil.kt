@@ -14,17 +14,29 @@ import java.io.RandomAccessFile
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedDeque
 
-class CompressUtil {
+class DeCompressUtil {
 
     //如果要自定义后缀解压请修改此列表
-    var compressSuffix = mutableListOf("zip", "rar", "7z")
+    private var compressSuffix = mutableListOf("zip", "rar", "7z")
 
-    suspend fun compressAll(
+    /**
+     * De compress all
+     *
+     * @param basePath              压缩包所在的目录，也可以黑丝压缩包的路径
+     * @param recursion             是否递归解压压缩包
+     * @param mode                  压缩包解压模式，参数参见
+     * @see DeCompressMode
+     *
+     * @param deleteZip             解压完成后是否删除压缩文件
+     * @param passwordGeneric       密码生成器，用于获取压缩文件密码，用户给出，使用示例参见Demo
+     * @return                      解压失败的文件路径，该文件在压缩包内的相对路径会以`[]`形式框起来
+     */
+    suspend fun deCompressAll(
         basePath: String,
         recursion: Boolean = true,
         mode: DeCompressMode = DeCompressMode.DECOMPRESS_IN_CURRENT_FOLDER,
         deleteZip: Boolean = true,
-        passwordGeneric: CompressUtil.(index: Int?, filename: String, currentFile: File) -> String? = { _, _, _ -> null }
+        passwordGeneric: DeCompressUtil.(index: Int?, filename: String, currentFile: File) -> String? = { _, _, _ -> null }
     ): ConcurrentLinkedDeque<String> {
         //创建线程安全list
         val list = ConcurrentLinkedDeque<String>()
@@ -38,7 +50,7 @@ class CompressUtil {
                     //按后缀寻找需要解压文件，多线程进行解压
                     baseFile.flattenPath().filter { it.extension.lowercase() in compressSuffix }.forEach {
                         launch(Dispatchers.IO) {
-                            compressZip(
+                            deCompressZip(
                                 it,
                                 it.zipSavedRootFile(mode),
                                 recursion,
@@ -51,7 +63,7 @@ class CompressUtil {
                     }
                 } else {
                     //单文件解压不使用多线程
-                    compressZip(
+                    deCompressZip(
                         baseFile,
                         baseFile.zipSavedRootFile(mode),
                         recursion,
@@ -68,14 +80,14 @@ class CompressUtil {
     }
 
     //解压单个zip项，会在所有项被解压后(指定recursion后会包括内部压缩文件)返回
-    private suspend fun compressZip(
+    private suspend fun deCompressZip(
         zipFile: File,
         saveFile: File,
         recursion: Boolean,
         mode: DeCompressMode,
         deleteZip: Boolean,
         list: ConcurrentLinkedDeque<String>,
-        passwordGeneric: CompressUtil.(Int?, String, File) -> String?
+        passwordGeneric: DeCompressUtil.(Int?, String, File) -> String?
     ): Unit = coroutineScope {
         //打开压缩文件并获取IInArchive对象
         val accessFile = RandomAccessFile(zipFile, "rw")
@@ -91,16 +103,6 @@ class CompressUtil {
         }
 
 
-        /**
-         * 创建加密项暂存和递归压缩文件暂存
-         * 在指定递归情况下是先解压未压缩文件，再解压递归文件，再解压加密文件，最后多线程解压加密文件内的压缩文件
-         * 故密码生成器可获取的密码文件范围在：
-         *  1.本就存在硬盘的文件，比如你可以在一堆压缩文件的同目录或者父目录下放置密码映射文件
-         *  2.压缩文件内未加密文件
-         *  3.压缩文件【1】内的压缩文件【2】内的文件(前提是压缩文件【2】内的密码文件能被解压出来(即密码生成器能给出密码))
-         *  4.父压缩文件(即该压缩文件是被父压缩文件解压出来的)中的未加密文件(这是被递归解压的文件视角)
-         *  5.在它之前被解压的加密项(加密文件的解压顺序以sevenzipjbinding给出的默认顺序为基准，暂时未发现它的item获取顺序是怎么样的，但可以保证在多次运行时获取的顺序不会变)
-         */
         /**
          * 创建加密项暂存和递归压缩文件暂存
          * 在指定递归情况下是先解压未压缩文件，再解压递归文件，再解压加密文件，最后多线程解压加密文件内的压缩文件
@@ -137,7 +139,7 @@ class CompressUtil {
         coroutineScope {
             innerZip.forEach {
                 launch(Dispatchers.IO) {
-                    compressZip(it, it.parentFile, recursion, mode, deleteZip, list, passwordGeneric)
+                    deCompressZip(it, it.parentFile, recursion, mode, deleteZip, list, passwordGeneric)
                 }
             }
         }
@@ -157,7 +159,7 @@ class CompressUtil {
             //如果这里面的压缩文件依赖于兄弟压缩文件内的密码文件，那只能乞求那个兄弟文件中的密码文件先被解压出来了 :)
             innerZip.forEach {
                 launch(Dispatchers.IO) {
-                    compressZip(it, it.parentFile, recursion, mode, deleteZip, list, passwordGeneric)
+                    deCompressZip(it, it.parentFile, recursion, mode, deleteZip, list, passwordGeneric)
                 }
             }
         }
@@ -176,7 +178,7 @@ class CompressUtil {
         mode: DeCompressMode,
         zipFile: File,
         list: ConcurrentLinkedDeque<String>,
-        passwordGeneric: (CompressUtil.(index: Int?, filename: String, currentFile: File) -> String?)?
+        passwordGeneric: (DeCompressUtil.(index: Int?, filename: String, currentFile: File) -> String?)?
     ): File? {
         //为item创建存放内容的文件，由于上个方法调用已经过滤掉文件夹类型，故不再验证
         val realFile = saveFile.decompressLocation(item.path, mode).let {
@@ -215,7 +217,7 @@ class CompressUtil {
                 generator(item.itemIndex, item.path, zipFile)?.let { password ->
                     item.extractSlow(method, password)
                 } ?: let {
-                    println("###CompressWarning:请为压缩文件加密压缩项给出一个密码，否则该文件数据无法解压---`${saveFile.absolutePath}\\${item.path}` ###")
+                    println("###CompressWarning:请为压缩文件加密压缩项给出一个密码，否则该文件数据无法解压---`${saveFile.absolutePath}\\[${item.path}]` ###")
                     list.add(zipFile.absolutePath + "\\[${item.path}]")
                     item.extractSlow(method)
                 }
