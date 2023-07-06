@@ -141,30 +141,34 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                 if (!exists()) mkdirs()
             }
             coroutineScope {
+                val indexOffset = if (prefixIndexStart == null) {
+                    var max = -1
+                    val reg = Regex("^(\\d+)_.+$")
+                    File(savePath).listFiles()?.forEach { f ->
+                        reg.matchEntire(f.name)?.let { match ->
+                            max = max(match.groupValues.get(1).toInt(), max)
+                        }
+                    }
+                    max + 1
+                } else {
+                    0
+                }
                 downloadInfos.forEachIndexed { index, downloadInfo ->
                     //此处判断prefixIndexStart是否被设置值，为null的话则遍历savePath下所有文件夹判断是否该续接上之前的index
-                    val indx = prefixIndexStart?.let {
+                    val postSaveIndex = prefixIndexStart?.let {
                         prefixIndexStart + index
-                    } ?: run {
-                        var max = -1
-                        val reg = Regex("^(\\d+)_.+$")
-                        File(savePath).listFiles()?.forEach { f ->
-                            reg.matchEntire(f.name)?.let { match ->
-                                max = max(match.groupValues.get(1).toInt(), max)
-                            }
-                        }
-                        max + 1
-                    }
+                    } ?: (indexOffset + index)
 
-                    val titleFile = File("$savePath\\${indx}_${downloadInfo.title}").apply {
+                    val titleFile = File("$savePath\\${postSaveIndex}_${downloadInfo.title}").apply {
                         if (!exists()) mkdirs()
                     }
 
 
                     //投稿图片下载
-                    downloadInfo.imgInfos.forEach { T ->
-                        val name = T.saveRelativePath + T.name
-                        val href = T.href
+                    downloadInfo.imgInfos.forEach { info ->
+                        //TODO("saveRelativePath可以代表savePath或者其他的，可以将其设定在外面)
+                        val name = info.saveRelativePath + info.name
+                        val href = info.href
                         launch(Dispatchers.IO) {
                             titleFile.resolve(name).run {
                                 try {
@@ -195,15 +199,15 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
 
                     //附件发送IDM
                     launch(Dispatchers.IO) {
-                        downloadInfo.fileInfos.forEach { T ->
-                            val name = T.name
-                            val href = T.href
+                        downloadInfo.fileInfos.forEach { info ->
+                            val name = info.name
+                            val href = info.href
                             mutex.withLock {
                                 IdmUtil.sendLinkToIDM(
                                     href = href,
                                     cookie = requestGeneric.cookie,
                                     referer = requestGeneric.referer,
-                                    localPath = titleFile.resolve(T.saveRelativePath).absolutePath,
+                                    localPath = titleFile.resolve(info.saveRelativePath).absolutePath,
                                     localFileName = name
                                 )
                                 fileSend++
