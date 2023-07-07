@@ -80,10 +80,11 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
         val planMap = getAllPlan(creatorId)
         val range = postRange(start, end, reversed, pageNum - 1)
         val infoArray = Array<List<CIENPostInfo>?>(range.count()) { null }
+        val offset = range.first
         coroutineScope {
             for (i in range) {
                 launch(Dispatchers.IO) {
-                    infoArray[i] = fetchPostsPaged(creatorId, i + 1, planMap)
+                    infoArray[i - offset] = fetchPostsPaged(creatorId, i + 1, planMap)
                 }
             }
         }
