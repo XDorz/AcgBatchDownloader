@@ -24,23 +24,34 @@ class DownloadDemo {
 
     companion object {
         //fanbox下载
-//        fun main() {
-//            CommonArticleDownloader(fanboxCore).apply {
-//                // 当你点开pixiv的某个作者主页的赞助时，能看到浏览器的url链接
-//                // https://XXXXXX.fanbox.cc/?utm_campaign=www_profile&utm_medium=site_flow&utm_source=pixiv
-//                //或者 https://www.fanbox.cc/@XXXXX
-//                //此处的域名的XXXXXX就是我们所需要的key
-//                //第三个参数表示不进行下载，我们在此处只进行作品统计
-//                commonDownload("XXXXXX", "G://your//save//path", false, filterFile = { _, _ ->
-//                    accumulator("postNum")                  //使用内置的计数器计数，它是线程不安全的，filter中的代码块不会在多线程中调用，如果您想要在多线程环境下使用该计数器，推荐使用锁等结构保证线程安全性
-//                    true
-//                }) { _, fanboxPostInfo ->
-//                    fanboxPostInfo.adult        //lambada会将这个表达式的值返回
-//                }
-//                println("该作者的成人作品投稿有 ${getAcc("postNum")} 个")
-//                accClear()                      //清空内置计数器，每一个通用下载器实例都含有一个计数器实例
-//            }
-//        }
+        fun main() {
+            CommonArticleDownloader(fanboxCore).apply {
+                // 当你点开pixiv的某个作者主页的赞助时，能看到浏览器的url链接
+                // https://XXXXXX.fanbox.cc/?utm_campaign=www_profile&utm_medium=site_flow&utm_source=pixiv
+                //或者 https://www.fanbox.cc/@XXXXX
+                //此处的域名的XXXXXX就是我们所需要的key
+                //第三个参数表示不进行下载，我们在此处只进行作品统计
+                commonDownload("XXXXXX", "G:/your/save/path", false, filterFile = { _, info ->
+                    accumulator("postNum")                  //使用内置的计数器计数，它是线程不安全的，但是filter中的代码块不会在多线程中调用，如果您想要在多线程环境下使用该计数器，推荐使用锁等结构保证线程安全性
+
+                    //saveRelativePath 为其保存的相对路径(也可设为绝对路径)
+                    //其中`?`(代表传入的savePath，即将文件直接保存到根目录)和`*`(绝对路径)为关键词，它们需要放在字符串的最前面
+                    //为防止名称冲突，当文件不在含有投稿名称的路径下时会加上投稿名称前缀来防止冲突
+                    info.imgInfos.forEach { it.saveRelativePath = "?inner" }     //该图片会保存在 G:/your/save/path/inner 文件夹下
+                    info.imgInfos.forEach {
+                        it.saveRelativePath = "inner/咱们可以玩点花的/../"
+                    }       //该图片会保存在 G:/your/save/path/index_投稿名称/inner 文件夹下
+                    info.fileInfos.forEach {
+                        it.saveRelativePath = "*G:\\download\\fanbox"
+                    }  //该文件会保存在 G:\download\fanbox 文件夹下
+                    true
+                }) { _, fanboxPostInfo ->
+                    fanboxPostInfo.adult        //lambada会将这个表达式的值返回
+                }
+                println("该作者的成人作品投稿有 ${getAcc("postNum")} 个")
+                accClear()                      //清空内置计数器，每一个通用下载器实例都含有一个计数器实例
+            }
+        }
 
         //TODO("添加onedrive的demo")
 
@@ -82,9 +93,9 @@ class DownloadDemo {
 //        }
 
         //oneDrive 下载
-        fun main() {
-
-        }
+//        fun main() {
+//
+//        }
 
     }
 }

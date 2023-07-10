@@ -10,6 +10,9 @@ import java.io.File
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.math.max
 
+
+//TODO("可以设定请求线程数")
+//TODO("月刊制平台可以指定月份")
 class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E : CommonFileInfo>(private val core: BasicPlatformCore<T, K, E>) {
     private val accMap = HashMap<String, Int>()
     private val requestGeneric: RequestUtil = core.requestGenerator
@@ -95,7 +98,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
         }
 
 
-        val failed = ArrayList<String>()
+        val failed = ConcurrentLinkedDeque<String>()
         //解析并下载
         runBlocking {
             core.preHook()
@@ -146,37 +149,33 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                     val reg = Regex("^(\\d+)_.+$")
                     File(savePath).listFiles()?.forEach { f ->
                         reg.matchEntire(f.name)?.let { match ->
-                            max = max(match.groupValues.get(1).toInt(), max)
+                            max = max(match.groupValues[1].toInt(), max)
                         }
                     }
                     max + 1
                 } else {
                     0
                 }
-                downloadInfos.forEachIndexed { index, downloadInfo ->
+                downloadInfos.forEachIndexed download@{ index, downloadInfo ->
                     //此处判断prefixIndexStart是否被设置值，为null的话则遍历savePath下所有文件夹判断是否该续接上之前的index
                     val postSaveIndex = prefixIndexStart?.let {
                         prefixIndexStart + index
                     } ?: (indexOffset + index)
 
-                    val titleFile = File("$savePath\\${postSaveIndex}_${downloadInfo.title}").apply {
-                        if (!exists()) mkdirs()
-                    }
-
+                    val _title = downloadInfo.title
+                    val titleFile = File("$savePath\\${postSaveIndex}_${_title}")
 
                     //投稿图片下载
                     downloadInfo.imgInfos.forEach { info ->
-                        //TODO("saveRelativePath可以代表savePath或者其他的，可以将其设定在外面)
-                        val name = info.saveRelativePath + info.name
                         val href = info.href
                         launch(Dispatchers.IO) {
-                            titleFile.resolve(name).run {
+                            saveFile(savePath, info, titleFile, _title, postSaveIndex).run {
                                 try {
                                     if (!parentFile.exists()) parentFile.mkdirs()
                                     if (!exists()) createNewFile()
                                 } catch (e: Exception) {
-                                    println(absolutePath)
-                                    throw e
+                                    failed.add(absolutePath)
+                                    return@launch
                                 }
                                 //如果一次性爬取太多可能会触发风控，此时会抛出异常导致程序崩溃  此时需要try catch来维持程序不崩溃
                                 //TODO("添加进一步错误处理，如delay一段时间后重试  注意并发问题")
@@ -200,15 +199,17 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                     //附件发送IDM
                     launch(Dispatchers.IO) {
                         downloadInfo.fileInfos.forEach { info ->
-                            val name = info.name
                             val href = info.href
+                            val savedFile = saveFile(savePath, info, titleFile, _title, postSaveIndex).apply {
+                                if (!parentFile.exists()) parentFile.mkdirs()
+                            }
                             mutex.withLock {
                                 IdmUtil.sendLinkToIDM(
                                     href = href,
                                     cookie = requestGeneric.cookie,
                                     referer = requestGeneric.referer,
-                                    localPath = titleFile.resolve(info.saveRelativePath).absolutePath,
-                                    localFileName = name
+                                    localPath = savedFile.parent,
+                                    localFileName = savedFile.name,
                                 )
                                 fileSend++
                             }
@@ -227,6 +228,10 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                         }
                     }
 
+                    //如果该投稿文件夹未创建，则将偏移减一，使得下个投稿的index使用这个的
+                    //thinking：多线程环境下无法保证该代码在titleFile文件创建之后执行，会造成错误的index
+                    //if(!titleFile.exists()) unusedIndexOffset--
+
                 }
                 core.afterHook()
             }
@@ -235,7 +240,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
             println()
             println("所有任务已完成！请享受作品")
         }
-        return failed
+        return failed.toList()
     }
 
     fun accumulator(key: String, value: Int = 1) {
@@ -248,14 +253,50 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
 
     fun List<String>.deleteFailed() {
         this.forEach {
-            File(it).let {
-                if (it.exists()) it.delete()
+            File(it).let { file ->
+                if (file.exists()) file.delete()
             }
         }
     }
 
     fun List<T>.println(transform: (T) -> CharSequence) {
         println(this.joinToString("\n", transform = transform))
+    }
+
+    private fun saveFile(savePath: String, info: CommonFileInfo, titleFile: File, title: String, index: Int): File {
+        val savedFile = when {
+            //星号开头表示使用绝对路径
+            info.saveRelativePath.startsWith("*") -> {
+                val path = info.saveRelativePath.substring(1)
+                val firstIndex = path.indexOfFirst { it != '/' && it != '\\' }
+                File(path.substring(firstIndex))
+            }
+            //单问号开头表示使用save path作为保存路径
+            info.saveRelativePath.startsWith("?") -> {
+                val path = info.saveRelativePath.substring(1)
+                val firstIndex = path.indexOfFirst { it != '/' && it != '\\' }
+                File(savePath).resolve(path.substring(firstIndex))
+            }
+            //默认情况下是在save path下创建以投稿为名的的文件夹作为保存路径
+            else -> {
+                val path = info.saveRelativePath
+                val firstIndex = path.indexOfFirst { it != '/' && it != '\\' }
+                titleFile.resolve(path.substring(firstIndex))
+            }
+        }
+
+        //如果saveRelativePath被修改过，则触发下列代码
+        return if (info._chasPathChanged) {
+            //当保存路径不带有投稿名称，则将该文件的名称加上 `index_投稿名称` 前缀
+            if (!savedFile.canonicalPath.contains(title)) {
+                savedFile.resolve("${index}_${title}_${info.name}")
+            } else {
+                //其余情况正常处理
+                savedFile.resolve(info.name)
+            }
+        } else {
+            savedFile.resolve(info.name)
+        }
     }
 
 }

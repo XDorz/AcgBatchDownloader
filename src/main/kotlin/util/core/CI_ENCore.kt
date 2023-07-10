@@ -468,8 +468,8 @@ class CIENDownloadInfo(
     title: String,
     imgInfos: MutableList<CIENFileInfo>,
     fileInfos: MutableList<CIENFileInfo>,
-    var links: List<String>,
-    val planedInfos: List<CIENPlanedInfo>,
+    var links: MutableList<String>,
+    val planedInfos: MutableList<CIENPlanedInfo>,
     hasContent: Boolean,
 ) : CommonDownloadInfo<CIENFileInfo>(title, imgInfos, fileInfos, hasContent)
 

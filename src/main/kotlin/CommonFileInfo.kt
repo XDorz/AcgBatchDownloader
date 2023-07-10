@@ -20,5 +20,17 @@ open class CommonFileInfo(
     var name: String,
     val href: String,
     val extension: String,
-    var saveRelativePath: String
-)
+    _csaveRelativePath: String,
+) {
+    //在类中声明该属性是为了覆盖默认setter方法
+    //该变量旨在默认值被修改时设置 默认值值被修改 标记位
+    //并且在通用下载中根据_chasPathChanged属性来确定是否要为该图片启用名称防冲突算法
+    var saveRelativePath: String = _csaveRelativePath
+        set(value) {
+            if (field != value) {
+                field = value
+                _chasPathChanged = true
+            }
+        }
+    var _chasPathChanged: Boolean = false
+}
