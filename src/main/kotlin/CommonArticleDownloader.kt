@@ -20,8 +20,8 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
     /**
      * 调用默认的下载行为，可传入以下过滤函数过滤作品
      *
-     * @param filterFile            该函数过滤作者的投稿
-     * @param filterCreator         该函数过滤作者投稿中的附件与图片
+     * @param filterContent            该函数过滤作者的投稿
+     * @param filterPosts         该函数过滤作者投稿中的附件与图片
      *
      * 需要注意的是 filterCreator 中给出的index代表作者投稿顺序的逆序，即越新的投稿index值越小，此举为了方便获取特定数量的更新
      * 为了统一，filterFile中的index值也是作者投稿顺序的逆序，但需要注意的是filterFile过滤之前就已经将[没有]图片与附件的投稿过滤掉了(即使有封面存在也会过滤掉)
@@ -66,8 +66,8 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
         reversed: Boolean = true,
         prefixIndexStart: Int? = null,
         printProgress: Boolean = true,
-        filterFile: CommonArticleDownloader<T, K, E>.(index: Int, K) -> Boolean = { _, _ -> true },
-        filterCreator: CommonArticleDownloader<T, K, E>.(index: Int, T) -> Boolean = { _, _ -> true },
+        filterContent: CommonArticleDownloader<T, K, E>.(index: Int, K) -> Boolean = { _, _ -> true },
+        filterPosts: CommonArticleDownloader<T, K, E>.(index: Int, T) -> Boolean = { _, _ -> true },
     ): List<String> {
         //守护线程----状态打印区
         var photoDown = 0
@@ -106,7 +106,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
             val mutex = Mutex()
 
             //获取该用户所有作品
-            val posts = core.fetchPosts(authorKey, start, end, reversed).filterIndexed { i, c -> filterCreator(i, c) }
+            val posts = core.fetchPosts(authorKey, start, end, reversed).filterIndexed { i, c -> filterPosts(i, c) }
 
             //获取该用户所有作品的下载链接解析
             state = 1
@@ -123,7 +123,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
             //数据统计
             state = 2
             val downloadInfos =
-                array.filterNotNull().map { it as K }.filterIndexed { i, d -> filterFile(i, d) }
+                array.filterNotNull().map { it as K }.filterIndexed { i, d -> filterContent(i, d) }
                     .filter { d -> d.hasContent }.reversed()
             downloadInfos.forEach {
                 totalP += it.imgInfos.size
@@ -217,6 +217,7 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                     }
 
                     //额外下载
+                    //TODO("或许在saveRelativePath被修改后跳过额外下载？或者为额外下载创建专门文件夹？或者在模型中定义额外下载的储存路径？")
                     launch(Dispatchers.IO) {
                         val idmDownloadInfo = ConcurrentLinkedDeque<IdmDownloadInfo>()
                         core.extractDownload(titleFile, downloadInfo, idmDownloadInfo, senderP)
