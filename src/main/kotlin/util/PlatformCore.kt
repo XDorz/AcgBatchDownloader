@@ -65,6 +65,7 @@ interface PlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, E : Common
         saveFile: File,
         downLoadInfo: K,
         sendFiles: ConcurrentLinkedDeque<IdmDownloadInfo>,
-        senderP: SendChannel<Boolean>
+        senderP: SendChannel<Boolean>,
+        saveFileGenerator: (name: String) -> File,
     )
 }

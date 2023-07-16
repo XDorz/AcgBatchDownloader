@@ -27,7 +27,8 @@ abstract class BasicPlatformCore<T : CommonPostInfo, K : CommonDownloadInfo<E>, 
         saveFile: File,
         downLoadInfo: K,
         sendFiles: ConcurrentLinkedDeque<IdmDownloadInfo>,
-        senderP: SendChannel<Boolean>
+        senderP: SendChannel<Boolean>,
+        saveFileGenerator: (name: String) -> File,
     ) = Unit
 
     //去除标题中含有的windows不允许的文件名字符

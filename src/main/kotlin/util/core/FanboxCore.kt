@@ -185,10 +185,12 @@ class FanboxCore(private val requestGeneric: RequestUtil) :
         saveFile: File,
         downLoadInfo: FanboxDownloadInfo,
         sendFiles: ConcurrentLinkedDeque<IdmDownloadInfo>,
-        senderP: SendChannel<Boolean>
+        senderP: SendChannel<Boolean>,
+        saveFileGenerator: (name: String) -> File,
     ) {
         if (downLoadInfo.coverHref != null) {
-            saveFile.resolve("cover.jpeg").run {
+            saveFileGenerator("cover.jpeg").run {
+                if (!parentFile.exists()) parentFile.mkdirs()
                 if (!exists()) createNewFile()
                 outputStream().use { fout ->
                     requestGeneric.genericGet(downLoadInfo.coverHref!!).execute().bodyStream().use {
@@ -231,7 +233,7 @@ class FanboxDownloadInfo(
     fileInfos: MutableList<FanboxFileInfo>,
     var coverHref: String?,
     hasContent: Boolean,
-) : CommonDownloadInfo<FanboxFileInfo>(title, imgInfos, fileInfos, hasContent)
+) : CommonDownloadInfo<FanboxFileInfo>(title, imgInfos, fileInfos, hasContent, "")
 
 class FanboxFileInfo(name: String, href: String, extension: String) :
     CommonFileInfo(name, href, extension, "")

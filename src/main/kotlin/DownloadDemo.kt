@@ -60,7 +60,7 @@ class DownloadDemo {
 //                //或者 https://www.fanbox.cc/@XXXXX
 //                //此处的域名的XXXXXX就是我们所需要的key
 //                //第三个参数表示不进行下载，我们在此处只进行作品统计
-//                commonDownload("XXXXXX", "G:/your/save/path", false, filterFile = { _, info ->
+//                commonDownload("XXXXXX", "G:/your/save/path", false, filterContent = { _, info ->
 //                    accumulator("postNum")                  //使用内置的计数器计数，它是线程不安全的，但是filter中的代码块不会在多线程中调用，如果您想要在多线程环境下使用该计数器，推荐使用锁等结构保证线程安全性
 //
 //                    //saveRelativePath 为其保存的相对路径(也可设为绝对路径)
@@ -99,7 +99,7 @@ class DownloadDemo {
 //                        0,
 //                        10,
 //                        reversed = false,
-//                        filterFile = { _, cienDownloadInfo ->
+//                        filterContent = { _, cienDownloadInfo ->
 //                            //您可以在此处修改任意信息
 //                            //去除所有文件的下载
 //                            cienDownloadInfo.fileInfos.clear()

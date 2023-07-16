@@ -217,17 +217,27 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
                     }
 
                     //额外下载
-                    //TODO("或许在saveRelativePath被修改后跳过额外下载？或者为额外下载创建专门文件夹？或者在模型中定义额外下载的储存路径？")
-                    launch(Dispatchers.IO) {
-                        val idmDownloadInfo = ConcurrentLinkedDeque<IdmDownloadInfo>()
-                        core.extractDownload(titleFile, downloadInfo, idmDownloadInfo, senderP)
-                        mutex.withLock {
-                            idmDownloadInfo.forEach {
-                                IdmUtil.sendLinkToIDM(it)
-                                fileSend++
+                    if (downloadInfo.extractFileSavePath != null) {
+                        val closure = extractDownloadSaveFileClosure(
+                            savePath,
+                            downloadInfo.extractFileSavePath!!,
+                            true,
+                            titleFile,
+                            _title,
+                            postSaveIndex
+                        )
+                        launch(Dispatchers.IO) {
+                            val idmDownloadInfo = ConcurrentLinkedDeque<IdmDownloadInfo>()
+                            core.extractDownload(titleFile, downloadInfo, idmDownloadInfo, senderP, closure)
+                            mutex.withLock {
+                                idmDownloadInfo.forEach {
+                                    IdmUtil.sendLinkToIDM(it)
+                                    fileSend++
+                                }
                             }
                         }
                     }
+
 
                     //如果该投稿文件夹未创建，则将偏移减一，使得下个投稿的index使用这个的
                     //thinking：多线程环境下无法保证该代码在titleFile文件创建之后执行，会造成错误的index
@@ -264,39 +274,68 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
         println(this.joinToString("\n", transform = transform))
     }
 
-    private fun saveFile(savePath: String, info: CommonFileInfo, titleFile: File, title: String, index: Int): File {
+    private fun saveFile(
+        savePath: String,
+        relativePath: String,
+        name: String,
+        hasPathChanged: Boolean,
+        titleFile: File,
+        title: String,
+        index: Int
+    ): File {
+        //剪枝，大部分情况下默认的relativePath都是`""`即代表直接在投稿文件夹下创建新文件
+        if (relativePath == "") {
+            return titleFile.resolve(name)
+        }
+
         val savedFile = when {
             //星号开头表示使用绝对路径
-            info.saveRelativePath.startsWith("*") -> {
-                val path = info.saveRelativePath.substring(1)
-                val firstIndex = path.indexOfFirst { it != '/' && it != '\\' }
+            relativePath.startsWith("*") -> {
+                val path = relativePath.substring(1)
+                val firstIndex = max(path.indexOfFirst { it != '/' && it != '\\' }, 0)
                 File(path.substring(firstIndex))
             }
             //单问号开头表示使用save path作为保存路径
-            info.saveRelativePath.startsWith("?") -> {
-                val path = info.saveRelativePath.substring(1)
-                val firstIndex = path.indexOfFirst { it != '/' && it != '\\' }
+            relativePath.startsWith("?") -> {
+                val path = relativePath.substring(1)
+                val firstIndex = max(path.indexOfFirst { it != '/' && it != '\\' }, 0)
                 File(savePath).resolve(path.substring(firstIndex))
             }
             //默认情况下是在save path下创建以投稿为名的的文件夹作为保存路径
             else -> {
-                val path = info.saveRelativePath
-                val firstIndex = path.indexOfFirst { it != '/' && it != '\\' }
-                titleFile.resolve(path.substring(firstIndex))
+                val firstIndex = max(relativePath.indexOfFirst { it != '/' && it != '\\' }, 0)
+                titleFile.resolve(relativePath.substring(firstIndex))
             }
         }
 
         //如果saveRelativePath被修改过，则触发下列代码
-        return if (info._chasPathChanged) {
+        return if (hasPathChanged) {
             //当保存路径不带有投稿名称，则将该文件的名称加上 `index_投稿名称` 前缀
             if (!savedFile.canonicalPath.contains(title)) {
-                savedFile.resolve("${index}_${title}_${info.name}")
+                savedFile.resolve("${index}_${title}_${name}")
             } else {
                 //其余情况正常处理
-                savedFile.resolve(info.name)
+                savedFile.resolve(name)
             }
         } else {
-            savedFile.resolve(info.name)
+            savedFile.resolve(name)
+        }
+    }
+
+    private fun saveFile(savePath: String, info: CommonFileInfo, titleFile: File, title: String, index: Int): File {
+        return saveFile(savePath, info.saveRelativePath, info.name, info._chasPathChanged, titleFile, title, index)
+    }
+
+    private fun extractDownloadSaveFileClosure(
+        savePath: String,
+        relativePath: String,
+        hasPathChanged: Boolean,
+        titleFile: File,
+        title: String,
+        index: Int
+    ): (name: String) -> File {
+        return { name ->
+            saveFile(savePath, relativePath, name, hasPathChanged, titleFile, title, index)
         }
     }
 

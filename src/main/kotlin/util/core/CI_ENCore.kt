@@ -304,11 +304,13 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
         saveFile: File,
         downLoadInfo: CIENDownloadInfo,
         sendFiles: ConcurrentLinkedDeque<IdmDownloadInfo>,
-        senderP: SendChannel<Boolean>
+        senderP: SendChannel<Boolean>,
+        saveFileGenerator: (name: String) -> File,
     ) {
         downLoadInfo.links.let {
             if (it.isNotEmpty()) {
-                saveFile.resolve("links.txt").let { file ->
+                saveFileGenerator("links.txt").let { file ->
+                    if (!file.parentFile.exists()) file.parentFile.mkdirs()
                     file.createNewFile()
                     file.writeText(it.joinToString("\n"))
                 }
@@ -471,7 +473,7 @@ class CIENDownloadInfo(
     var links: MutableList<String>,
     val planedInfos: MutableList<CIENPlanedInfo>,
     hasContent: Boolean,
-) : CommonDownloadInfo<CIENFileInfo>(title, imgInfos, fileInfos, hasContent)
+) : CommonDownloadInfo<CIENFileInfo>(title, imgInfos, fileInfos, hasContent, "")
 
 //考虑到通用下载时并不使用这个属性，故此处全为val
 data class CIENPlanedInfo(

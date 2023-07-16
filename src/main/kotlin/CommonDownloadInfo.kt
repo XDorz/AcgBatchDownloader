@@ -15,4 +15,5 @@ open class CommonDownloadInfo<T : CommonFileInfo>(
     var imgInfos: MutableList<T>,
     var fileInfos: MutableList<T>,
     var hasContent: Boolean,
+    var extractFileSavePath: String?,
 )
