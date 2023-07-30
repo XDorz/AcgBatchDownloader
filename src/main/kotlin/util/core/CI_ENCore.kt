@@ -20,7 +20,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedDeque
 
-//在CI-EN中，start与end的含义解释为 [页数] 排除第一页作者固定的作品，每页有5个作品
+//在CI-EN中，start与end的含义解释为 [页数]
+//***注意：为保持统一，页数将从第0页开始算起，即想要获得第一页的内容，需使用第0页***
+//排除第一页作者固定的作品，每页有5个作品
 class CI_ENCore(private val requestGeneric: RequestUtil) :
     BasicPlatformCore<CIENPostInfo, CIENDownloadInfo, CIENFileInfo>() {
 
@@ -205,14 +207,23 @@ class CI_ENCore(private val requestGeneric: RequestUtil) :
         var hascontent = false
 
         val imgInfos = planedList.fold(mutableListOf<CIENFileInfo>()) { acc, cienPlanedInfo ->
+            val planFee = cienPlanedInfo.fee
+            val planName = cienPlanedInfo.name
+            cienPlanedInfo.imgInfos.forEach { it.name = "${planFee}_${planName}_${it.name}" }
             acc.addAll(cienPlanedInfo.imgInfos)
             acc
         }.apply { hascontent = hascontent or isNotEmpty() }
         val fileInfos = planedList.fold(mutableListOf<CIENFileInfo>()) { acc, cienPlanedInfo ->
+            val planFee = cienPlanedInfo.fee
+            val planName = cienPlanedInfo.name
+            cienPlanedInfo.fileInfos.forEach { it.name = "${planFee}_${planName}_${it.name}" }
             acc.addAll(cienPlanedInfo.fileInfos)
             acc
         }.apply { hascontent = hascontent or isNotEmpty() }
         val links = planedList.fold(mutableListOf<String>()) { acc, cienPlanedInfo ->
+            val planFee = cienPlanedInfo.fee
+            val planName = cienPlanedInfo.name
+            cienPlanedInfo.links.map { "${planFee}_${planName}_VALUE:\n$it\n" }
             acc.addAll(cienPlanedInfo.links)
             acc
         }.apply { hascontent = hascontent or isNotEmpty() }
