@@ -13,6 +13,7 @@ import kotlin.math.max
 
 //TODO("可以设定请求线程数")
 //TODO("月刊制平台可以指定月份")
+//TODO("验证是否为文件夹，添加一个文件批量删除")
 class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E : CommonFileInfo>(private val core: BasicPlatformCore<T, K, E>) {
     private val accMap = HashMap<String, Int>()
     private val requestGeneric: RequestUtil = core.requestGenerator
