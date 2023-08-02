@@ -246,7 +246,7 @@ class DeCompressUtil {
         if (!isDirectory) {
             list.add(this)
         } else {
-            listFiles().forEach { it.flattenPath(list) }
+            listFiles()?.forEach { it.flattenPath(list) }
         }
         return list
     }

@@ -2,6 +2,7 @@ import kotlinx.coroutines.runBlocking
 import util.DeCompressUtil
 import util.RequestUtil
 import util.core.CI_ENCore
+import util.core.FanboxCore
 import util.core.OneDriveCore
 import util.core.OnedriveFileType
 import java.util.*
@@ -24,6 +25,7 @@ class DownloadDemo {
         proxyAddr = "127.0.0.1"
         proxyPort = 10809
     }
+    val fanboxCore = FanboxCore(fanboxGeneric)
 
     val oneDriveGeneric = RequestUtil().apply {
         //每个作者的分享页面cookie都不同，当下载别的作品时请记得切换cookie
@@ -51,8 +53,8 @@ class DownloadDemo {
      */
 //    val oneDriveCore = OneDriveCore(oneDriveGeneric,"ABCDE-my.sharepoint.com","FGHIJ_KLMNOPQ_RSTUVW_com")
 
-    companion object {
-        //fanbox下载
+
+    //fanbox下载
 //        fun main() {
 //            CommonArticleDownloader(fanboxCore).apply {
 //                // 当你点开pixiv的某个作者主页的赞助时，能看到浏览器的url链接
@@ -83,7 +85,7 @@ class DownloadDemo {
 //        }
 
 
-        //ci-en的下载
+    //ci-en的下载
 //        fun main() {
 //            CommonArticleDownloader(cienCore).apply {
 //                //此处的14266为用户id  例如你浏览一个用户，你可以看到浏览器URL为
@@ -120,66 +122,65 @@ class DownloadDemo {
 //            }
 //        }
 
-        //oneDrive 下载
-        fun main() {
-            CommonArticleDownloader(oneDriveCore).apply {
-                //请阅读创建变量oneDriveCore那块的注释
-                //此处的key为你要下载文件所处的路径(父路径)  ***要排除最前面的那个 作者名字(有时候会因为某种原因显示为 我的文件)***
-                //比如你想要下载一些共享的文件，你看到如下信息
-                //AuthorName > this > is > sample > path
-                //即这些文件在 this/is/sample/path 这个路径下
-                //那么此时key则为 `this/is/sample/path`
-                //注意排除最前面的那个`AuthorName`那个是作者名字，并不包含在路径中
-                //如果您怕出错，您可以使用oneDriveCore.convertToKey将你见到的所有信息放入list中传入
-                //就像demo展示的那样
-                //
-                //***需要注意的是filterPosts所给出的项是给出的key下的直接文件(包括文件夹，视频，zip等所有)***
-                //***filterContent则是递归获取每一个通过了filterPosts的直接文件夹下的每一个文件(除了文件夹外的所有类型)***
-                //
-                val fail =
-                    commonDownload(
-                        oneDriveCore.convertToKey(
-                            listOf(
-                                "作者名称",
-                                "this",
-                                "is",
-                                "sample",
-                                "path"
-                            )
-                        ),      //该函数结果与下面的注释相同
-                        //"this/is/sample/path",
-                        "G://your//save//path",
-                        true,
-                        0,
-                        10,
-                        reversed = false,
-                        filterContent = { _, onedriveDownloadInfo ->
-                            //您可以在此处修改任意信息
-                            onedriveDownloadInfo.hasContent = true          //这样即使该文件夹下没有文件也会创建这个文件夹
-                            onedriveDownloadInfo.imgInfos.forEach {
-                                it.saveRelativePath = ""
-                            }    //将一个文件夹内的所有图片下载到这个文件夹下
-                            true
-                        }) filter@{ index, onedrivePostInfo ->
-                        if (onedrivePostInfo.updated) {
-                            //只下载有更新的文件
-                            val calendar = Calendar.getInstance().apply {
-                                set(Calendar.YEAR, 2023)
-                                set(Calendar.MONTH, 6)
-                                set(Calendar.DATE, 1)
-                            }
-                            if (onedrivePostInfo.publishedDatetime.after(calendar.time)) {
-                                //下载2023年6月1日后创建的文件
-                                if (onedrivePostInfo.type == OnedriveFileType.DIRECTORY && onedrivePostInfo.innerFileCount > 2) {
-                                    //获取该文件夹下直接文件大于2的所有内容
-                                    return@filter true
-                                }
+    //oneDrive 下载
+    fun main() {
+        CommonArticleDownloader(oneDriveCore).apply {
+            //请阅读创建变量oneDriveCore那块的注释
+            //此处的key为你要下载文件所处的路径(父路径)  ***要排除最前面的那个 作者名字(有时候会因为某种原因显示为 我的文件)***
+            //比如你想要下载一些共享的文件，你看到如下信息
+            //AuthorName > this > is > sample > path
+            //即这些文件在 this/is/sample/path 这个路径下
+            //那么此时key则为 `this/is/sample/path`
+            //注意排除最前面的那个`AuthorName`那个是作者名字，并不包含在路径中
+            //如果您怕出错，您可以使用oneDriveCore.convertToKey将你见到的所有信息放入list中传入
+            //就像demo展示的那样
+            //
+            //***需要注意的是filterPosts所给出的项是给出的key下的直接文件(包括文件夹，视频，zip等所有)***
+            //***filterContent则是递归获取每一个通过了filterPosts的直接文件夹下的每一个文件(除了文件夹外的所有类型)***
+            //
+            val fail =
+                commonDownload(
+                    oneDriveCore.convertToKey(
+                        listOf(
+                            "作者名称",
+                            "this",
+                            "is",
+                            "sample",
+                            "path"
+                        )
+                    ),      //该函数结果与下面的注释相同
+                    //"this/is/sample/path",
+                    "G://your//save//path",
+                    true,
+                    0,
+                    10,
+                    reversed = false,
+                    filterContent = { _, onedriveDownloadInfo ->
+                        //您可以在此处修改任意信息
+                        onedriveDownloadInfo.hasContent = true          //这样即使该文件夹下没有文件也会创建这个文件夹
+                        onedriveDownloadInfo.imgInfos.forEach {
+                            it.saveRelativePath = ""
+                        }    //将一个文件夹内的所有图片下载到这个文件夹下
+                        true
+                    }) filter@{ index, onedrivePostInfo ->
+                    if (onedrivePostInfo.updated) {
+                        //只下载有更新的文件
+                        val calendar = Calendar.getInstance().apply {
+                            set(Calendar.YEAR, 2023)
+                            set(Calendar.MONTH, 6)
+                            set(Calendar.DATE, 1)
+                        }
+                        if (onedrivePostInfo.publishedDatetime.after(calendar.time)) {
+                            //下载2023年6月1日后创建的文件
+                            if (onedrivePostInfo.type == OnedriveFileType.DIRECTORY && onedrivePostInfo.innerFileCount > 2) {
+                                //获取该文件夹下直接文件大于2的所有内容
+                                return@filter true
                             }
                         }
-                        false
                     }
-                println("共有以下文件下载失败 \n" + fail.joinToString("\n"))
-            }
+                    false
+                }
+            println("共有以下文件下载失败 \n" + fail.joinToString("\n"))
         }
 
     }

@@ -289,23 +289,24 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
             return titleFile.resolve(name)
         }
 
+        var path = relativePath.replace("{index}", index.toString(), true)
         val savedFile = when {
             //星号开头表示使用绝对路径
-            relativePath.startsWith("*") -> {
-                val path = relativePath.substring(1)
+            path.startsWith("*") -> {
+                path = path.substring(1)
                 val firstIndex = max(path.indexOfFirst { it != '/' && it != '\\' }, 0)
                 File(path.substring(firstIndex))
             }
             //单问号开头表示使用save path作为保存路径
-            relativePath.startsWith("?") -> {
-                val path = relativePath.substring(1)
+            path.startsWith("?") -> {
+                path = path.substring(1)
                 val firstIndex = max(path.indexOfFirst { it != '/' && it != '\\' }, 0)
                 File(savePath).resolve(path.substring(firstIndex))
             }
             //默认情况下是在save path下创建以投稿为名的的文件夹作为保存路径
             else -> {
-                val firstIndex = max(relativePath.indexOfFirst { it != '/' && it != '\\' }, 0)
-                titleFile.resolve(relativePath.substring(firstIndex))
+                val firstIndex = max(path.indexOfFirst { it != '/' && it != '\\' }, 0)
+                titleFile.resolve(path.substring(firstIndex))
             }
         }
 
@@ -338,6 +339,10 @@ class CommonArticleDownloader<T : CommonPostInfo, K : CommonDownloadInfo<E>, E :
         return { name ->
             saveFile(savePath, relativePath, name, hasPathChanged, titleFile, title, index)
         }
+    }
+
+    fun download(downloadInfo: K, savePath: String) {
+        TODO("not implemented")
     }
 
 }
